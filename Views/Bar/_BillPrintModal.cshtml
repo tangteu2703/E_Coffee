@@ -1,0 +1,98 @@
+<!-- Modal In Hóa Đơn (Bill Print) -->
+<div class="modal fade" id="billPrintModal" tabindex="-1" aria-labelledby="billPrintModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header bg-dark text-white py-2.5 px-3">
+                <h5 class="modal-title fs-6 fw-bold d-flex align-items-center gap-2" id="billPrintModalLabel">
+                    <i class="bi bi-printer-fill text-warning"></i>
+                    <span>Xem Trước & In Hóa Đơn (Bill 80mm)</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 bg-light" style="max-height: 75vh; overflow-y: auto;">
+                
+                <!-- Bill Printable Content -->
+                <div id="printableBill" class="bill-paper">
+                    <div class="text-center">
+                        <h5 class="fw-black mb-1" style="font-size: 1.1rem; letter-spacing: -0.5px;">HOÀNG GIA E-COFFEE</h5>
+                        <div style="font-size: 0.72rem; color: #444;">Đ/C: Vincom Center, 72 Lê Thánh Tôn, Q.1</div>
+                        <div style="font-size: 0.72rem; color: #444;">Hotline: 1900 1234 - Wifi: Hoàng Gia Coffee</div>
+                    </div>
+
+                    <div class="bill-divider"></div>
+
+                    <div class="text-center fw-bold" style="font-size: 0.95rem; text-transform: uppercase;">
+                        HÓA ĐƠN THANH TOÁN
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size: 0.75rem; margin-top: 4px;">
+                        <span>Số HD: <strong id="billNumber">#HD-8842</strong></span>
+                        <span id="billDateTime">24/08/2026 17:15</span>
+                    </div>
+                    <div style="font-size: 0.75rem;" id="billTargetName">Vị trí: <strong>Bàn 02</strong></div>
+                    <div style="font-size: 0.75rem;">Thu ngân: <strong>Pha Chế Ca 1</strong></div>
+
+                    <div class="bill-divider"></div>
+
+                    <!-- Items Table -->
+                    <table class="w-100" style="font-size: 0.75rem; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #666;">
+                                <th class="text-start py-1">Tên món</th>
+                                <th class="text-center py-1">SL</th>
+                                <th class="text-end py-1">Đ.Giá</th>
+                                <th class="text-end py-1">T.Tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="billItemsBody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+
+                    <div class="bill-divider"></div>
+
+                    <!-- Totals -->
+                    <div class="d-flex justify-content-between" style="font-size: 0.78rem;">
+                        <span>Tạm tính:</span>
+                        <span id="billSubtotal">0đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size: 0.78rem;">
+                        <span>Giảm giá:</span>
+                        <span id="billDiscount">0đ</span>
+                    </div>
+                    <div class="bill-divider"></div>
+                    <div class="d-flex justify-content-between fw-bold" style="font-size: 1rem;">
+                        <span>TỔNG CỘNG:</span>
+                        <span id="billTotal">0đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size: 0.75rem; margin-top: 3px;">
+                        <span>Khách đưa:</span>
+                        <span id="billCashGiven">0đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size: 0.75rem;">
+                        <span>Tiền trả lại:</span>
+                        <span id="billChangeReturned">0đ</span>
+                    </div>
+
+                    <div class="bill-divider"></div>
+
+                    <div class="text-center mt-2">
+                        <div style="font-size: 0.75rem; font-weight: bold;">Cảm ơn quý khách & Hẹn gặp lại!</div>
+                        <div style="font-size: 0.68rem; color: #666; margin-top: 2px;">Pass Wifi: hoanggiacoffee2026</div>
+                        <!-- Mock Barcode -->
+                        <div class="mt-2 font-monospace" style="font-size: 0.7rem; letter-spacing: 3px; background: #eee; padding: 4px; display: inline-block;">
+                            ||||| ||| |||| |||||| ||||
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer bg-white py-2 px-3 justify-content-between">
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-weight-bold" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-dark btn-sm rounded-pill fw-bold px-4 d-flex align-items-center gap-2" onclick="ECoffeeBar.triggerPrint()">
+                    <i class="bi bi-printer-fill text-warning"></i>
+                    <span>In Hóa Đơn Now</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,27 @@
+<!-- Product Customization Modal -->
+<div class="modal-overlay" id="productCustomModal">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header py-2.5 px-3">
+            <div class="modal-title fs-6 fw-bold" id="productModalTitle">Tùy Chỉnh Món</div>
+            <button class="btn-close-modal" onclick="ECoffee.closeModal('productCustomModal')">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="modal-body p-3" id="productModalBody">
+            <!-- Dynamic Content Injected via site.js -->
+        </div>
+
+        <div class="modal-footer py-2 px-3">
+            <div class="qty-control-box py-0.5 px-1.5">
+                <button class="btn-qty" type="button" onclick="ECoffee.changeModalQty(-1)">-</button>
+                <span class="qty-val fw-bold" id="modalQtyValue">1</span>
+                <button class="btn-qty" type="button" onclick="ECoffee.changeModalQty(1)">+</button>
+            </div>
+
+            <button class="btn btn-sm btn-danger rounded-pill px-3 py-1 fw-bold shadow-sm" type="button" onclick="ECoffee.confirmAddToCart()">
+                <span>Thêm vào giỏ</span> • <span id="modalFooterPrice">0đ</span>
+            </button>
+        </div>
+    </div>
+</div>

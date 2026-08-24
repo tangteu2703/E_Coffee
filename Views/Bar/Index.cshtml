@@ -1,0 +1,326 @@
+@model E_Coffee.Models.BarPageViewModel
+@{
+    ViewData["Title"] = "Quầy Bar & Pha Chế (POS)";
+    Layout = "_BarLayout";
+}
+
+<div class="pos-container">
+    
+    <!-- Sub Header Summary Banner -->
+    <div class="pos-subbanner d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-dark fs-6 me-1">Trạng thái cửa hàng:</span>
+            <span class="pos-stat-chip chip-empty">
+                <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i>
+                <span>Bàn trống: <strong id="statEmptyCount">@Model.EmptyTableCount</strong></span>
+            </span>
+            <span class="pos-stat-chip chip-occupied">
+                <i class="bi bi-people-fill"></i>
+                <span>Đang ngồi: <strong id="statOccupiedCount">@Model.OccupiedTableCount</strong></span>
+            </span>
+            <span class="pos-stat-chip chip-online">
+                <i class="bi bi-globe2"></i>
+                <span>Đơn Online: <strong id="statOnlineCount">@Model.PendingOnlineOrderCount</strong></span>
+            </span>
+        </div>
+
+        <div class="text-muted style-italic" style="font-size: 0.78rem;">
+            <i class="bi bi-info-circle me-1"></i>Hệ thống tự động đồng bộ bàn và đơn đặt từ khách hàng
+        </div>
+    </div>
+
+    <!-- Main Grid Wrapper 2 Columns -->
+    <div class="pos-grid-wrapper">
+
+        <!-- CỘT BÊN TRÁI: TAB BÀN & ĐƠN ONLINE + TAB THỰC ĐƠN ORDER -->
+        <div class="pos-main-card">
+            
+            <!-- Standard Bootstrap Nav Pills for Tab Switching -->
+            <ul class="nav pos-nav-pills" id="posTabPills" role="tablist">
+                <li class="nav-item flex-fill" role="presentation">
+                    <button class="nav-link active w-100" id="tab-tables-btn" type="button" role="tab" onclick="ECoffeeBar.switchTab('tables')">
+                        <i class="bi bi-grid-3x3-gap-fill me-1"></i>
+                        <span>SƠ ĐỒ BÀN & ĐƠN BÁN</span>
+                        <span class="badge-count" id="tabTablesBadge">@Model.Tables.Count</span>
+                    </button>
+                </li>
+                <li class="nav-item flex-fill" role="presentation">
+                    <button class="nav-link w-100" id="tab-menu-btn" type="button" role="tab" onclick="ECoffeeBar.switchTab('menu')">
+                        <i class="bi bi-cup-straw me-1"></i>
+                        <span>THỰC ĐƠN ORDER (TẠI QUẦY)</span>
+                        <span class="badge-count">@Model.Products.Count món</span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- CONTENT TAB 1: BÀN & ĐƠN ONLINE -->
+            <div id="tabTablesContent">
+                
+                <!-- Sub-filters đồng bộ 3 hình thức phục vụ: Tại bàn, Giao tận nơi, Đến lấy -->
+                <div class="pos-filter-chips">
+                    <button class="filter-chip-btn active" onclick="ECoffeeBar.filterTables('all', this)">Tất Cả (@(Model.Tables.Count + Model.OnlineOrders.Count))</button>
+                    <button class="filter-chip-btn" onclick="ECoffeeBar.filterTables('table', this)">Tại Bàn (@Model.Tables.Count)</button>
+                    <button class="filter-chip-btn" onclick="ECoffeeBar.filterTables('delivery', this)">Giao Tận Nơi (@Model.OnlineOrders.Count(o => o.OrderType == E_Coffee.Models.OrderType.Delivery))</button>
+                    <button class="filter-chip-btn" onclick="ECoffeeBar.filterTables('pickup', this)">Đến Lấy / Mang Đi (@Model.OnlineOrders.Count(o => o.OrderType == E_Coffee.Models.OrderType.Pickup))</button>
+                </div>
+
+                <!-- Section: Bàn Trong Quán Grid -->
+                <div class="mb-4" id="sectionStoreTables">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5" style="font-size: 0.95rem;">
+                            <i class="bi bi-shop text-danger"></i>
+                            <span>BÀN TRONG QUÁN</span>
+                        </h6>
+                        <span class="text-muted style-italic" style="font-size: 0.75rem;">Click vào bàn để load/thêm món</span>
+                    </div>
+
+                    <div class="tables-grid" id="tablesGrid">
+                        @foreach (var table in Model.Tables)
+                        {
+                            var statusClass = table.Status == E_Coffee.Models.BarTableStatus.Occupied ? "occupied" : "empty";
+                            var statusText = table.Status == E_Coffee.Models.BarTableStatus.Occupied ? "Đang ngồi" : "Trống";
+                            var statusPillClass = table.Status == E_Coffee.Models.BarTableStatus.Occupied ? "status-occupied" : "status-empty";
+                            
+                            <div class="table-item-card @statusClass" data-table-id="@table.TableId" data-table-name="@table.TableName" onclick="ECoffeeBar.selectTable('@table.TableName')">
+                                <div class="d-flex justify-content-between align-items-start gap-1">
+                                    <div class="overflow-hidden">
+                                        <div class="table-title text-truncate">@table.TableName</div>
+                                        <div class="table-zone text-truncate" style="max-width: 100px;" title="@table.Zone">@table.Zone</div>
+                                    </div>
+                                    <span class="table-status-pill @statusPillClass flex-shrink-0">@statusText</span>
+                                </div>
+
+                                <div class="mt-2 pt-1.5 border-top">
+                                    @if (table.Status == E_Coffee.Models.BarTableStatus.Occupied)
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="style-italic" style="font-size: 0.72rem; color: #ea580c;"><i class="bi bi-clock"></i> @table.DisplayDuration</span>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <span class="fw-bold text-secondary" style="font-size: 0.72rem;">@table.ItemCount món -</span>
+                                                <span class="table-amount mb-0" style="font-size: 0.85rem;">@table.TotalAmount.ToString("N0")đ</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-muted" style="font-size: 0.72rem;">Sẵn sàng đón khách</div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Section 2: Đơn Giao Tận Nơi Grid (Delivery) -->
+                <div class="mb-4" id="sectionDeliveryOrders">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5" style="font-size: 0.95rem;">
+                            <i class="bi bi-truck text-primary"></i>
+                            <span>ĐƠN GIAO TẬN NƠI (DELIVERY)</span>
+                        </h6>
+                        <span class="badge bg-primary rounded-pill">@Model.OnlineOrders.Count(o => o.OrderType == E_Coffee.Models.OrderType.Delivery) đơn</span>
+                    </div>
+
+                    <div class="online-grid" id="deliveryOrdersGrid">
+                        @foreach (var order in Model.OnlineOrders.Where(o => o.OrderType == E_Coffee.Models.OrderType.Delivery))
+                        {
+                            var statusBadge = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "bg-danger" : "bg-warning text-dark";
+                            var statusName = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "Chờ pha chế" : "Đang pha chế";
+
+                            <div class="online-item-card" data-order-id="@order.OrderId" onclick="ECoffeeBar.selectOnlineOrder('@order.OrderId')">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <span class="fw-extrabold text-dark" style="font-size: 0.95rem;">@order.OrderId</span>
+                                    <div class="d-flex gap-1">
+                                        <span class="badge bg-primary" style="font-size: 0.68rem;">Giao tận nơi</span>
+                                        <span class="badge @statusBadge" style="font-size: 0.68rem;">@statusName</span>
+                                    </div>
+                                </div>
+                                <div class="fw-bold text-dark" style="font-size: 0.85rem;">@order.CustomerName - @order.CustomerPhone</div>
+                                <div class="text-muted text-truncate" style="font-size: 0.75rem;"><i class="bi bi-geo-alt me-1"></i>@order.DeliveryAddress</div>
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1.5 border-top">
+                                    <span class="text-secondary style-italic" style="font-size: 0.72rem;"><i class="bi bi-clock"></i> @order.OrderTime.ToString("HH:mm")</span>
+                                    <span class="fw-bold text-danger" style="font-size: 0.88rem;">@order.TotalAmount.ToString("N0")đ (@order.ItemCount món)</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Section 3: Đơn Đến Lấy / Mang Đi Grid (Pickup / Takeaway) -->
+                <div id="sectionPickupOrders">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5" style="font-size: 0.95rem;">
+                                <i class="bi bi-bag-check-fill text-warning"></i>
+                                <span>ĐƠN ĐẾN LẤY & MANG ĐI</span>
+                            </h6>
+                            <div class="text-muted style-italic" style="font-size: 0.72rem;">Khách tự scan đặt trước hoặc thu ngân tạo đơn tại quầy</div>
+                        </div>
+                        <span class="badge bg-warning text-dark rounded-pill">@Model.OnlineOrders.Count(o => o.OrderType == E_Coffee.Models.OrderType.Pickup) đơn</span>
+                    </div>
+
+                    <div class="online-grid" id="pickupOrdersGrid">
+                        <!-- Action Card: + Tạo Đơn Mang Đi Mới Tại Quầy -->
+                        <div class="online-item-card border-dashed d-flex flex-column align-items-center justify-content-center text-center p-3" style="border-style: dashed !important; border-color: #f59e0b !important; background: #fffdfb; min-height: 110px;" onclick="(ECoffeeBar.createTakeawayOrder || ECoffeeBar.resetToCounterOrder)()">
+                            <div class="bg-warning bg-opacity-20 text-warning-emphasis rounded-circle d-flex align-items-center justify-content-center mb-1.5" style="width: 32px; height: 32px;">
+                                <i class="bi bi-plus-lg fs-6"></i>
+                            </div>
+                            <div class="fw-bold text-dark small">+ Tạo Đơn Mang Đi Mới</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">Khách gọi đồ mang đi tại quầy</div>
+                        </div>
+
+                        <!-- Scan & Online Pickup Orders -->
+                        @foreach (var order in Model.OnlineOrders.Where(o => o.OrderType == E_Coffee.Models.OrderType.Pickup))
+                        {
+                            var statusBadge = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "bg-danger" : "bg-warning text-dark";
+                            var statusName = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "Chờ pha chế" : "Đang pha chế";
+
+                            <div class="online-item-card" data-order-id="@order.OrderId" onclick="ECoffeeBar.selectOnlineOrder('@order.OrderId')">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <span class="fw-extrabold text-dark" style="font-size: 0.95rem;">@order.OrderId</span>
+                                    <div class="d-flex gap-1">
+                                        <span class="badge bg-info text-dark" style="font-size: 0.68rem;">Đến lấy / Mang đi</span>
+                                        <span class="badge @statusBadge" style="font-size: 0.68rem;">@statusName</span>
+                                    </div>
+                                </div>
+                                <div class="fw-bold text-dark" style="font-size: 0.85rem;">@order.CustomerName - @order.CustomerPhone</div>
+                                <div class="text-muted text-truncate" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i>@order.DeliveryAddress</div>
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1.5 border-top">
+                                    <span class="text-secondary style-italic" style="font-size: 0.72rem;"><i class="bi bi-clock"></i> @order.OrderTime.ToString("HH:mm")</span>
+                                    <span class="fw-bold text-danger" style="font-size: 0.88rem;">@order.TotalAmount.ToString("N0")đ (@order.ItemCount món)</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CONTENT TAB 2: THỰC ĐƠN ORDER (TẠI QUẦY) -->
+            <div id="tabMenuContent" class="d-none">
+                
+                <!-- Category Horizontal Filter & Search -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <div class="menu-cat-chips flex-fill mb-0">
+                        <button class="menu-cat-btn active" onclick="ECoffeeBar.filterCategory(0, this)">Tất Cả Món</button>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <button class="menu-cat-btn" onclick="ECoffeeBar.filterCategory(@cat.Id, this)">
+                                <i class="bi @cat.Icon me-1"></i>@cat.Name
+                            </button>
+                        }
+                    </div>
+                    <div class="position-relative" style="width: 220px;">
+                        <input type="text" class="form-control form-control-sm rounded-pill ps-4" id="inputSearchProduct" placeholder="Tìm tên món..." onkeyup="ECoffeeBar.searchProducts()">
+                        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2.5 text-muted" style="font-size: 0.8rem;"></i>
+                    </div>
+                </div>
+
+                <!-- Products Grid -->
+                <div class="menu-products-grid" id="posProductsGrid">
+                    @foreach (var prod in Model.Products)
+                    {
+                        <div class="menu-prod-card" data-cat-id="@prod.CategoryId" data-name="@prod.Name.ToLower()" onclick="ECoffeeBar.openProductOptionModal(@prod.Id)">
+                            <div class="position-relative">
+                                @if (!string.IsNullOrEmpty(prod.Badge))
+                                {
+                                    <span class="badge bg-danger rounded-pill position-absolute top-0 start-0 m-1.5 shadow-sm" style="font-size: 0.65rem; z-index: 1;">
+                                        @prod.Badge
+                                    </span>
+                                }
+                                <img src="@prod.ImageUrl" alt="@prod.Name" class="menu-prod-img">
+                            </div>
+                            <div class="menu-prod-body">
+                                <div>
+                                    <div class="menu-prod-name">@prod.Name</div>
+                                    <div class="text-muted" style="font-size: 0.7rem;">@prod.CategoryName</div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mt-2 gap-1">
+                                    <div class="d-flex align-items-baseline gap-1 flex-wrap min-w-0">
+                                        @if (prod.HasPromo)
+                                        {
+                                            <span class="menu-prod-price">@prod.EffectivePrice.ToString("N0")đ</span>
+                                            <span class="text-muted text-decoration-line-through" style="font-size: 0.7rem;">@prod.BasePrice.ToString("N0")đ</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="menu-prod-price">@prod.BasePrice.ToString("N0")đ</span>
+                                        }
+                                    </div>
+                                    <button type="button" class="btn-add-item-soft" onclick="ECoffeeBar.openProductOptionModal(@prod.Id); event.stopPropagation();">+ Thêm</button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CỘT BÊN PHẢI: GIỎ HÀNG, IN BILL & THANH TOÁN -->
+        <div class="pos-side-card">
+            
+            <!-- Target Order Info Header (1 Hàng Đơn Giản) -->
+            <div class="cart-target-banner d-flex align-items-center justify-content-between py-2 px-3">
+                <span class="text-uppercase fw-bold text-muted" style="font-size: 0.78rem;">Đang phục vụ:</span>
+                <span class="fw-extrabold text-danger fs-6" id="activeTargetTitle">Bàn 02</span>
+            </div>
+
+            <!-- Cart Items Container -->
+            <div class="cart-items-container" id="posCartList">
+                <!-- JS populated -->
+            </div>
+
+            <!-- Cashier Note Field -->
+            <div class="mb-3">
+                <input type="text" class="form-control form-control-sm rounded-3" id="inputCashierNote" placeholder="Ghi chú pha chế (VD: Ít đường, thêm đá...)" style="font-size: 0.8rem;">
+            </div>
+
+            <!-- Summary Box -->
+            <div class="bg-light border rounded-3 p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center small text-secondary mb-1">
+                    <span>Tạm tính (<span id="cartTotalItemsCount">0</span> món):</span>
+                    <strong class="font-monospace text-dark" id="cartSubtotal">0đ</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center small text-secondary mb-1">
+                    <span>Giảm giá / Voucher:</span>
+                    <strong class="font-monospace text-success" id="cartDiscount">0đ</strong>
+                </div>
+                <hr class="my-2 border-dashed">
+                <div class="d-flex justify-content-between align-items-center fw-bold fs-5 text-danger">
+                    <span>TỔNG CỘNG:</span>
+                    <span class="font-monospace" id="cartGrandTotal">0đ</span>
+                </div>
+            </div>
+
+            <!-- Refined Action Buttons -->
+            <div class="row g-2">
+                <div class="col-6">
+                    <button type="button" class="btn-pos-action-bill w-100" onclick="ECoffeeBar.openBillModal()">
+                        <i class="bi bi-printer-fill text-dark fs-6"></i>
+                        <span>IN BILL</span>
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button type="button" class="btn-pos-action-pay w-100" onclick="ECoffeeBar.openPaymentModal()">
+                        <i class="bi bi-wallet2 fs-6"></i>
+                        <span>THANH TOÁN</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modals -->
+<partial name="_ProductModal" />
+<partial name="_BillPrintModal" />
+<partial name="_PaymentModal" />
+
+@section Scripts {
+    <script src="~/js/bar.js" asp-append-version="true"></script>
+}

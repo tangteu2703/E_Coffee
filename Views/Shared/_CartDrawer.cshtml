@@ -1,0 +1,78 @@
+<!-- Cart Side Drawer Overlay -->
+<div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="if(event.target === this) ECoffee.toggleCartDrawer(false)">
+    <div class="cart-drawer">
+        <div class="cart-drawer-header">
+            <!-- Service / Order Mode Banner Card inside Cart Drawer Header -->
+            <div class="cart-drawer-mode-card" onclick="ECoffee.openOrderModeModal()" title="Nhấn để đổi kênh phục vụ (Tại bàn, Giao hàng, Đến lấy)">
+                <div class="d-flex align-items-center gap-2.5 overflow-hidden">
+                    <div class="mode-icon-circle flex-shrink-0">
+                        <i class="bi bi-qr-code-scan" id="cartModeIcon"></i>
+                    </div>
+                    <div class="d-flex flex-column text-truncate">
+                        <span class="mode-sub-title" id="cartModeSub">Order tại bàn qua mã QR</span>
+                        <span class="mode-main-title text-truncate" id="cartModeValue">Bàn 01 (Chưa có tên)</span>
+                    </div>
+                </div>
+                <button class="btn-change-mode flex-shrink-0" type="button">
+                    <span>Thay đổi</span>
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+            </div>
+            <button class="btn-close-modal" onclick="ECoffee.toggleCartDrawer(false)">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="cart-drawer-body" id="cartDrawerBody">
+            <!-- Dynamic Cart Items Injected via site.js -->
+        </div>
+
+        <div class="cart-drawer-footer">
+            <!-- Compact Voucher Input (No extra labels) -->
+            <div class="input-group input-group-sm mb-1" id="voucherInputGroup">
+                <input type="text" id="voucherCodeInput" class="form-control form-control-sm text-uppercase font-monospace" placeholder="Nhập mã voucher (VD: ECOFFEE10, HE2026)..." aria-label="Mã giảm giá" onkeydown="if(event.key==='Enter') ECoffee.applyVoucherFromInput()">
+                <button class="btn btn-sm btn-outline-danger fw-bold px-2.5" type="button" onclick="ECoffee.applyVoucherFromInput()">Áp dụng</button>
+            </div>
+            <div id="voucherInputFeedback" class="text-danger text-xs mb-2 fw-semibold" style="display: none; font-size: 0.75rem;"></div>
+
+            <!-- Detailed Summary Breakdown -->
+            <div class="cart-summary-rows border-top pt-2">
+                <div class="cart-summary-row" id="cartTotalCountRow">
+                    <span style="color: var(--text-muted);">Tổng số lượng:</span>
+                    <strong id="cartTotalCountText" class="text-dark">0 món (0 cốc)</strong>
+                </div>
+                <div class="cart-summary-row">
+                    <span style="color: var(--text-muted);">Tạm tính món:</span>
+                    <strong id="cartSubtotalPrice">0đ</strong>
+                </div>
+                <div class="cart-summary-row" id="cartProductDiscountRow" style="display: none;">
+                    <span style="color: #28A745;">Khuyến mãi món:</span>
+                    <strong id="cartProductDiscountPrice" style="color: #28A745;">-0đ</strong>
+                </div>
+                <div class="cart-summary-row" id="cartVoucherDiscountRow" style="display: none;">
+                    <span style="color: var(--primary);" id="cartVoucherDiscountLabel">Voucher giảm giá:</span>
+                    <div class="d-flex align-items-center gap-1">
+                        <strong id="cartVoucherDiscountPrice" style="color: var(--primary);">-0đ</strong>
+                        <button class="btn btn-sm text-danger p-0 border-0 ms-1" type="button" onclick="ECoffee.removeVoucher()" title="Gỡ voucher">
+                            <i class="bi bi-x-circle-fill" style="font-size: 0.85rem;"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="cart-summary-row" id="cartShippingRow" style="display: none;">
+                    <span style="color: var(--text-muted);">Phí giao hàng:</span>
+                    <span id="cartShippingPrice" class="fw-bold">0đ</span>
+                </div>
+                <hr class="my-1.5" style="border-top: 1px dashed var(--border-color); opacity: 0.6;">
+                <div class="cart-summary-row" style="margin-bottom: 0.5rem;">
+                    <span style="color: var(--secondary); font-weight: 800; font-size: 1.05rem;">Tổng thanh toán:</span>
+                    <span class="cart-total-price" id="cartGrandTotalPrice">0đ</span>
+                </div>
+            </div>
+
+            <button class="btn-checkout-now" onclick="ECoffee.processCheckout()">
+                <span>XÁC NHẬN ĐẶT HÀNG</span>
+                <i class="bi bi-arrow-right-circle-fill"></i>
+            </button>
+        </div>
+    </div>
+</div>

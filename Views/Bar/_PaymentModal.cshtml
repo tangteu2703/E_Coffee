@@ -1,0 +1,79 @@
+<!-- Modal Thanh Toán (Payment Modal) -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header bg-danger text-white py-3 px-3">
+                <h5 class="modal-title fs-6 fw-bold d-flex align-items-center gap-2" id="paymentModalLabel">
+                    <i class="bi bi-wallet2 text-warning"></i>
+                    <span>Thanh Toán Đơn Hàng</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <!-- Target & Amount summary banner -->
+                <div class="bg-light border rounded-3 p-3 text-center mb-3">
+                    <div class="text-muted small fw-bold text-uppercase">Số tiền cần thanh toán (<span id="payTargetTitle">Bàn 02</span>)</div>
+                    <div class="fs-2 fw-black text-danger font-monospace my-1" id="payFinalAmount">109.000đ</div>
+                    <div class="text-secondary style-italic" style="font-size: 0.78rem;" id="payItemSummary">Gồm 3 món ăn/đồ uống</div>
+                </div>
+
+                <!-- Payment Methods Tabs -->
+                <label class="form-label fw-bold small text-dark mb-2">Phương thức thanh toán:</label>
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-outline-danger flex-fill active py-2 fw-bold small d-flex flex-column align-items-center gap-1" id="btnPayCash" onclick="ECoffeeBar.selectPayMethod('cash')">
+                        <i class="bi bi-cash-stack fs-5"></i>
+                        <span>Tiền Mặt</span>
+                    </button>
+                    <button class="btn btn-outline-danger flex-fill py-2 fw-bold small d-flex flex-column align-items-center gap-1" id="btnPayQr" onclick="ECoffeeBar.selectPayMethod('qr')">
+                        <i class="bi bi-qr-code-scan fs-5"></i>
+                        <span>Chuyển Khoản QR</span>
+                    </button>
+                    <button class="btn btn-outline-danger flex-fill py-2 fw-bold small d-flex flex-column align-items-center gap-1" id="btnPayCard" onclick="ECoffeeBar.selectPayMethod('card')">
+                        <i class="bi bi-credit-card-2-front fs-5"></i>
+                        <span>Thẻ POS</span>
+                    </button>
+                </div>
+
+                <!-- Cash Options Form -->
+                <div id="cashPaySection">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small text-dark mb-1">Tiền khách đưa:</label>
+                        <input type="number" class="form-control form-control-lg fw-bold font-monospace text-primary" id="inputCashGiven" placeholder="Nhập số tiền..." oninput="ECoffeeBar.calculateChange()">
+                    </div>
+                    <!-- Quick Cash Suggestion Chips -->
+                    <div class="d-flex flex-wrap gap-1.5 mb-3" id="cashQuickChips">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                    <div class="p-2.5 rounded-3 bg-warning bg-opacity-15 border border-warning d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark small">Tiền thừa trả lại khách:</span>
+                        <span class="fs-5 fw-extrabold text-success font-monospace" id="payChangeAmount">0đ</span>
+                    </div>
+                </div>
+
+                <!-- QR Pay Section -->
+                <div id="qrPaySection" class="d-none text-center py-2">
+                    <div class="p-3 border rounded-3 bg-white d-inline-block shadow-sm">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=HOANGGIA_COFFEE_CHECKOUT" alt="VietQR Code" class="img-fluid rounded" style="max-width: 170px;">
+                    </div>
+                    <div class="mt-2 fw-bold text-dark small">Quét mã VietQR / MoMo để chuyển khoản</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">Ngân hàng: MBBank - STK: 9999888899 - Chu So Huu: HOANG GIA COFFEE</div>
+                </div>
+
+                <!-- Card Pay Section -->
+                <div id="cardPaySection" class="d-none text-center py-3">
+                    <i class="bi bi-credit-card-2-back text-primary" style="font-size: 3rem;"></i>
+                    <div class="fw-bold text-dark mt-2">Vui lòng quẹt thẻ trên thiết bị POS quầy</div>
+                    <div class="text-muted small">Đang chờ tín hiệu kết nối từ máy POS...</div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light py-2 px-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-weight-bold" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger btn-sm rounded-pill fw-bold px-4 py-2 d-flex align-items-center gap-2 shadow-sm" onclick="ECoffeeBar.confirmCheckout()">
+                    <i class="bi bi-check-circle-fill fs-6"></i>
+                    <span>Hoàn Tất & In Hóa Đơn</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,100 @@
+<!-- Order Mode & Customer Identification Modal -->
+<div class="modal-overlay" id="orderModeModal">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header py-2.5 px-3">
+            <div class="modal-title fs-6 fw-bold">
+                <i class="bi bi-geo-alt-fill text-danger me-1"></i> Chọn Hình Thức Phục Vụ
+            </div>
+            <button class="btn-close-modal" onclick="ECoffee.closeModal('orderModeModal')">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="modal-body p-3">
+            <!-- Mode Switcher Tabs -->
+            <div style="display: flex; background: var(--bg-warm); padding: 3px; border-radius: 50px; margin-bottom: 1rem;">
+                <button class="tab-btn mode-tab-btn active py-1 px-2 small" id="tab_mode_AtTable" style="flex: 1; justify-content: center; font-size: 0.78rem;" onclick="ECoffee.selectOrderModeTab('AtTable')">
+                    <i class="bi bi-qr-code-scan"></i> Tại Bàn (QR)
+                </button>
+                <button class="tab-btn mode-tab-btn py-1 px-2 small" id="tab_mode_Delivery" style="flex: 1; justify-content: center; font-size: 0.78rem;" onclick="ECoffee.selectOrderModeTab('Delivery')">
+                    <i class="bi bi-truck"></i> Giao Tận Nơi
+                </button>
+                <button class="tab-btn mode-tab-btn py-1 px-2 small" id="tab_mode_Pickup" style="flex: 1; justify-content: center; font-size: 0.78rem;" onclick="ECoffee.selectOrderModeTab('Pickup')">
+                    <i class="bi bi-bag-check-fill"></i> Đến Lấy
+                </button>
+            </div>
+
+            <!-- Fields for At-Table Order (QR Code) -->
+            <div id="sectionAtTableFields">
+                <div style="background: var(--primary-light); padding: 0.65rem 0.85rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.8rem; color: var(--primary-dark); display: flex; gap: 0.6rem; align-items: flex-start;">
+                    <i class="bi bi-qr-code-scan" style="font-size: 1.1rem; color: var(--primary);"></i>
+                    <div>
+                        <strong>Phục vụ tại bàn qua QR:</strong> Hệ thống tự động xác định vị trí bàn. Quý khách vui lòng nhập tên và số điện thoại để Barista mang nước tới bàn.
+                    </div>
+                </div>
+
+                <div class="form-group mb-2.5">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Vị trí Bàn (Định danh từ QR)</label>
+                    <input type="text" id="inputTableNo" class="form-control form-control-sm py-1.5" placeholder="Ví dụ: Bàn 05" value="Bàn 01">
+                </div>
+
+                <div class="form-group mb-2.5">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Họ và Tên khách hàng (*)</label>
+                    <input type="text" id="inputCustName" class="form-control form-control-sm py-1.5" placeholder="Nhập tên của bạn...">
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Số điện thoại liên hệ (*)</label>
+                    <input type="tel" id="inputCustPhone" class="form-control form-control-sm py-1.5" placeholder="Ví dụ: 0908123456">
+                </div>
+            </div>
+
+            <!-- Fields for Delivery Order -->
+            <div id="sectionDeliveryFields" style="display: none;">
+                <div style="background: var(--accent-light); padding: 0.65rem 0.85rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.8rem; color: var(--secondary); display: flex; gap: 0.6rem; align-items: flex-start;">
+                    <i class="bi bi-truck" style="font-size: 1.1rem; color: var(--accent);"></i>
+                    <div>
+                        <strong>Order Online Giao Hàng:</strong> Đơn hàng sẽ được đánh mã theo <strong>Số điện thoại</strong> để Shipper giao tận nơi.
+                    </div>
+                </div>
+
+                <div class="form-group mb-2.5">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Địa chỉ giao hàng (*)</label>
+                    <input type="text" id="inputAddress" class="form-control form-control-sm py-1.5" placeholder="Số nhà, Tên đường..." value="Vincom Center, Q.1, TP.HCM">
+                </div>
+
+                <div class="form-group mb-2.5">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Họ và Tên người nhận (*)</label>
+                    <input type="text" id="inputCustNameDelivery" class="form-control form-control-sm py-1.5" placeholder="Nhập tên người nhận...">
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Số điện thoại người nhận (*)</label>
+                    <input type="tel" id="inputCustPhoneDelivery" class="form-control form-control-sm py-1.5" placeholder="Ví dụ: 0908123456">
+                </div>
+            </div>
+
+            <!-- Fields for Pickup Order -->
+            <div id="sectionPickupFields" style="display: none;">
+                <div class="form-group mb-2">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">Chọn cửa hàng đến lấy</label>
+                    <select class="form-control form-control-sm py-1.5">
+                        <option>Hoàng Gia Coffee - Vincom Center Q.1</option>
+                        <option>Hoàng Gia Coffee - Landmark 81</option>
+                        <option>Hoàng Gia Coffee - Bitexco Tower</option>
+                        <option>Hoàng Gia Coffee - Crescent Mall Q.7</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer py-2 px-3">
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 fw-bold text-nowrap" type="button" onclick="ECoffee.closeModal('orderModeModal')">
+                Hủy bỏ
+            </button>
+            <button class="btn btn-sm btn-danger rounded-pill px-3.5 py-1 fw-bold shadow-sm text-nowrap" type="button" onclick="ECoffee.saveOrderModeFromModal()">
+                Xác Nhận & Lưu
+            </button>
+        </div>
+    </div>
+</div>

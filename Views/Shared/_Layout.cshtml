@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - E-Coffee | Đặt Cà Phê & Trà Online / Tại Bàn</title>
+    <meta name="description" content="Hệ thống đặt cà phê phin đậm đà, Freeze đá xay và trà thạch Hoàng Gia tại bàn qua QR code hoặc giao hàng tận nơi nhanh chóng." />
+    
+    <!-- Bootstrap 5.3.3 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    
+    <!-- Bootstrap Icons 1.11.3 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <!-- Site Custom CSS -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+
+    <!-- Header -->
+    <partial name="_Header" />
+
+    <!-- Main Body Content -->
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    <!-- Footer -->
+    <partial name="_Footer" />
+
+    <!-- Modals & Drawers -->
+    <partial name="_OrderModeModal" />
+    <partial name="_ProductModal" />
+    <partial name="_CartDrawer" />
+
+    <!-- Mobile Sticky Cart Bar -->
+    <div class="mobile-sticky-cart-bar" id="mobileStickyCartBar">
+        <div class="mobile-cart-info">
+            <div class="mobile-cart-count-badge" id="mobileCartCount">0</div>
+            <div>
+                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); text-transform: uppercase;">Tổng giỏ hàng</div>
+                <div class="mobile-cart-total" id="mobileCartTotal">0đ</div>
+            </div>
+        </div>
+        <button class="btn-mobile-view-cart" onclick="ECoffee.toggleCartDrawer(true)">
+            <span>Xem giỏ hàng</span>
+            <i class="bi bi-arrow-right-short" style="font-size: 1.2rem;"></i>
+        </button>
+    </div>
+
+    <!-- Bootstrap 5.3.3 JS & SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Site Custom Interactivity Script -->
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,349 @@
+@{
+    ViewData["Title"] = "Hoàng Gia Coffee - Thương Hiệu Cà Phê Việt Nam";
+    var categories = ViewBag.Categories as List<E_Coffee.Models.Category> ?? new List<E_Coffee.Models.Category>();
+    var bestSellers = ViewBag.BestSellers as List<E_Coffee.Models.Product> ?? new List<E_Coffee.Models.Product>();
+}
+
+<!-- Full-Width Hero Slider Banner (Hoàng Gia Brand Carousel) -->
+<div id="heroHoangGiaCarousel" class="carousel slide carousel-fade hero-carousel" data-bs-ride="carousel" data-bs-interval="4500">
+    <div class="carousel-indicators mb-4">
+        <button type="button" data-bs-target="#heroHoangGiaCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+        <button type="button" data-bs-target="#heroHoangGiaCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+        <button type="button" data-bs-target="#heroHoangGiaCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+    </div>
+
+    <div class="carousel-inner">
+        <!-- Slide 1: PhinDi Hạnh Nhân -->
+        <div class="carousel-item active hero-slide-item bg-dark text-white">
+            <div class="hero-bg-overlay" style="background-image: linear-gradient(to right, rgba(43, 24, 16, 0.95), rgba(43, 24, 16, 0.4)), url('https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=1600&q=80');"></div>
+            <div class="container-xl hero-content-container py-5">
+                <div class="row align-items-center min-vh-50">
+                    <div class="col-lg-7 text-center text-lg-start">
+                        <span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill fw-bold text-uppercase tracking-wider mb-3">
+                            <i class="bi bi-fire me-1"></i> SẢN PHẨM NỔI BẬT
+                        </span>
+                        <h1 class="display-4 fw-extrabold text-white mb-3 lh-tight">
+                            PHINDI HẠNH NHÂN <br />
+                            <span class="text-warning">BẠN DI MỚI BÉO BÙI</span>
+                        </h1>
+                        <p class="lead text-white-50 fs-6 mb-4 max-w-550 mx-auto mx-lg-0">
+                            Cà phê Phin thế hệ mới hòa quyện cùng sốt Hạnh Nhân béo ngậy thơm lừng và lớp foam sữa mịn màng. Trải nghiệm vị ngon nồng nàn quyến rũ!
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center justify-content-lg-start gap-2.5">
+                            <a href="/Order" class="btn btn-danger btn-sm rounded-pill px-3.5 py-1.5 fw-bold shadow-lg d-inline-flex align-items-center gap-2">
+                                <i class="bi bi-bag-check-fill fs-5"></i> ĐẶT MÓN NGAY
+                            </a>
+                            <a href="javascript:void(0)" class="btn btn-outline-light btn-sm rounded-pill px-3.5 py-1.5 fw-bold d-inline-flex align-items-center gap-2" onclick="ECoffee.openOrderModeModal()">
+                                <i class="bi bi-qr-code-scan"></i> Order Tại Bàn (QR)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Trà Sen Vàng Signature -->
+        <div class="carousel-item hero-slide-item bg-dark text-white">
+            <div class="hero-bg-overlay" style="background-image: linear-gradient(to right, rgba(26, 13, 8, 0.92), rgba(26, 13, 8, 0.45)), url('https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=1600&q=80');"></div>
+            <div class="container-xl hero-content-container py-5">
+                <div class="row align-items-center min-vh-50">
+                    <div class="col-lg-7 text-center text-lg-start">
+                        <span class="badge bg-danger text-white px-3 py-1.5 rounded-pill fw-bold text-uppercase tracking-wider mb-3">
+                            <i class="bi bi-award-fill me-1"></i> HOÀNG GIA SIGNATURE
+                        </span>
+                        <h1 class="display-4 fw-extrabold text-white mb-3 lh-tight">
+                            TRÀ SEN VÀNG <br />
+                            <span class="text-warning">ĐẬM VỊ VIỆT THANH MÁT</span>
+                        </h1>
+                        <p class="lead text-white-50 fs-6 mb-4 max-w-550 mx-auto mx-lg-0">
+                            Trà Ô Long thơm ngát hòa quyện hạt sen bùi ngọt, củ năng giòn rụm và lớp kem phô mai cheese béo ngậy độc quyền Cà Phê Hoàng Gia.
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center justify-content-lg-start gap-2.5">
+                            <a href="/Order?cat=3" class="btn btn-danger btn-sm rounded-pill px-3.5 py-1.5 fw-bold shadow-lg d-inline-flex align-items-center gap-2">
+                                <i class="bi bi-cup-straw fs-5"></i> THƯỞNG THỨC NGAY
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Freeze Trà Xanh Uji -->
+        <div class="carousel-item hero-slide-item bg-dark text-white">
+            <div class="hero-bg-overlay" style="background-image: linear-gradient(to right, rgba(15, 30, 20, 0.9), rgba(15, 30, 20, 0.4)), url('https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=1600&q=80');"></div>
+            <div class="container-xl hero-content-container py-5">
+                <div class="row align-items-center min-vh-50">
+                    <div class="col-lg-7 text-center text-lg-start">
+                        <span class="badge bg-success text-white px-3 py-1.5 rounded-pill fw-bold text-uppercase tracking-wider mb-3">
+                            <i class="bi bi-snow2 me-1"></i> DÒNG FREEZE ĐÁ XAY
+                        </span>
+                        <h1 class="display-4 fw-extrabold text-white mb-3 lh-tight">
+                            FREEZE TRÀ XANH <br />
+                            <span class="text-success-subtle">SẢNG KHOÁI MÁT LẠNH</span>
+                        </h1>
+                        <p class="lead text-white-50 fs-6 mb-4 max-w-550 mx-auto mx-lg-0">
+                            Trà xanh Uji Nhật Bản đá xay thơm béo kết hợp thạch giòn sần sật và lớp kem tươi sánh mịn ngon khó cưỡng.
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center justify-content-lg-start gap-2.5">
+                            <a href="/Order?cat=2" class="btn btn-success btn-sm rounded-pill px-3.5 py-1.5 fw-bold shadow-lg d-inline-flex align-items-center gap-2">
+                                <i class="bi bi-snow2 fs-5"></i> ĐẶT FREEZE NGAY
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroHoangGiaCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroHoangGiaCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
+</div>
+
+<!-- Quick Action & Service Bar (Compact 1 Row on Mobile) -->
+<div class="bg-secondary text-white py-1.5 py-md-3 border-bottom shadow-sm">
+    <div class="container-xl">
+        <div class="quick-service-strip text-nowrap py-1 gap-2 gap-md-4">
+            <!-- Item 1: Order QR -->
+            <div class="d-flex align-items-center gap-1.5 gap-md-3 cursor-pointer" onclick="ECoffee.openOrderModeModal()">
+                <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 quick-bar-icon">
+                    <i class="bi bi-qr-code-scan"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-white quick-bar-title">ORDER QR TẠI BÀN</div>
+                    <div class="text-white-50 text-xs quick-bar-subtext">Phục vụ tận bàn không chờ đợi</div>
+                </div>
+            </div>
+
+            <!-- Divider on desktop -->
+            <div class="border-end border-secondary-subtle d-none d-md-block" style="height: 28px;"></div>
+
+            <!-- Item 2: Delivery -->
+            <div class="d-flex align-items-center gap-1.5 gap-md-3 cursor-pointer" onclick="window.location.href='/Order?mode=delivery'">
+                <div class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 quick-bar-icon">
+                    <i class="bi bi-truck"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-white quick-bar-title">GIAO HÀNG 15'</div>
+                    <div class="text-white-50 text-xs quick-bar-subtext">Miễn phí giao hàng đơn từ 99k</div>
+                </div>
+            </div>
+
+            <!-- Divider on desktop -->
+            <div class="border-end border-secondary-subtle d-none d-md-block" style="height: 28px;"></div>
+
+            <!-- Item 3: Hotline -->
+            <div class="d-flex align-items-center gap-1.5 gap-md-3">
+                <div class="bg-light text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 quick-bar-icon">
+                    <i class="bi bi-telephone-fill text-danger"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-warning quick-bar-title">HOTLINE: 1900 1755</div>
+                    <div class="text-white-50 text-xs quick-bar-subtext">Hoạt động 07:00 - 22:00 hằng ngày</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Categories Visual Showcase -->
+<section class="container-xl my-5 py-2">
+    <div class="text-center max-w-600 mx-auto mb-4">
+        <span class="text-uppercase fw-bold text-danger small tracking-widest">KHÁM PHÁ THỰC ĐƠN</span>
+        <h2 class="display-6 fw-extrabold text-secondary mb-2"></h2>
+        <p class="text-muted small">Từ những ly cà phê Phin đậm đà truyền thống đến Freeze đá xay mát lạnh và trà thạch trái cây thanh mát.</p>
+    </div>
+
+    <div class="row row-cols-5 row-cols-md-3 row-cols-lg-5 g-1.5 g-sm-2 g-md-3">
+        @foreach (var cat in categories)
+        {
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm rounded-4 p-2 p-md-3 text-center transition-all bg-white cursor-pointer brand-cat-card" onclick="window.location.href='/Order?cat=@cat.Id'">
+                    <div class="bg-danger-subtle text-danger rounded-circle mx-auto mb-2 mb-md-3 d-flex align-items-center justify-content-center brand-cat-icon-box">
+                        <i class="bi @cat.Icon fs-5 fs-md-3"></i>
+                    </div>
+                    <h6 class="fw-extrabold text-secondary mb-1 brand-cat-title">@cat.Name</h6>
+                    <p class="text-muted text-xs mb-3 d-none d-md-block">@cat.Description</p>
+                    <span class="btn btn-sm btn-outline-danger rounded-pill fw-bold px-3 mt-auto align-self-center text-nowrap d-none d-md-inline-flex">
+                        Khám phá <i class="bi bi-chevron-right ms-1"></i>
+                    </span>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- Hoàng Gia Coffee Origin & Brand Story Section -->
+<section class="bg-light py-5 border-top border-bottom my-5 position-relative overflow-hidden">
+    <div class="container-xl">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <div class="position-relative">
+                    <img src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80" class="img-fluid rounded-4 shadow-lg w-100" alt="Hành trình Cà phê Tây Nguyên" style="max-height: 440px; object-fit: cover;">
+                    <div class="position-absolute top-0 start-0 m-3 bg-danger text-white rounded-pill px-3 py-1.5 fw-bold small shadow">
+                        <i class="bi bi-geo-alt-fill me-1"></i> TÂY NGUYÊN VIỆT NAM
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <span class="text-uppercase fw-bold text-danger small tracking-widest">CÂU CHUYỆN THƯƠNG HIỆU</span>
+                <h2 class="display-6 fw-extrabold text-secondary mb-3">TỪ NÔNG TRƯỜNG ĐẾN LY CÀ PHÊ PHIN ĐẬM ĐÀ</h2>
+                <p class="text-muted fs-6 mb-4">
+                    Bắt đầu từ tình yêu mãnh liệt với hạt cà phê Việt Nam, Cà Phê Hoàng Gia đã trải qua hơn 20 năm gìn giữ và phát triển nét văn hóa cà phê Phin đậm đà nguyên bản. Từng hạt Robusta và Arabica từ vùng cao nguyên Đắk Lắk được tuyển chọn kỹ lưỡng và rang xay theo công thức độc quyền.
+                </p>
+
+                <div class="d-flex flex-column gap-3 mb-4">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="bg-danger text-white rounded-circle p-2.5 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                            <i class="bi bi-check-lg fw-bold"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0">Hạt Cà Phê Nguyên Chất 100%</h6>
+                            <p class="text-muted text-xs mb-0">Tuyển chọn thủ công từ những vùng trồng cà phê nổi tiếng tại Tây Nguyên.</p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="bg-danger text-white rounded-circle p-2.5 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                            <i class="bi bi-check-lg fw-bold"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0">Bí Quyết Rang Xay Độc Quyền</h6>
+                            <p class="text-muted text-xs mb-0">Rang xay hoàn hảo giữ trọn vị đắng nồng nàn và hậu vị ngọt dịu thơm lâu.</p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="bg-danger text-white rounded-circle p-2.5 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
+                            <i class="bi bi-check-lg fw-bold"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0">Không Gian Phục Vụ Hiện Đại</h6>
+                            <p class="text-muted text-xs mb-0">Kết hợp nét văn hóa truyền thống và phong cách phục vụ hiện đại, văn minh.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="/Order" class="btn btn-danger btn-sm rounded-pill px-3.5 py-1.5 fw-bold shadow-sm">
+                    TRẢI NGHIỆM THỰC ĐƠN HOÀNG GIA
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Bestsellers Menu Highlights Grid -->
+<section class="container-xl my-5">
+    <div class="d-flex align-items-end justify-content-between mb-4">
+        <div>
+            <span class="text-uppercase fw-bold text-danger small tracking-widest">SẢN PHẨM BÁN CHẠY</span>
+            <h3 class="fw-extrabold text-secondary mb-0">CÓ THỂ BẠN SẼ THÍCH</h3>
+        </div>
+        <a href="/Order" class="fw-bold text-danger text-decoration-none small d-flex align-items-center gap-1">
+            Xem toàn bộ menu <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+        @foreach (var p in bestSellers)
+        {
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden product-card transition-all bg-white">
+                    <div class="position-relative bg-light" style="height: 160px;">
+                        @if (!string.IsNullOrEmpty(p.Badge))
+                        {
+                            <span class="badge bg-danger rounded-pill position-absolute top-0 start-0 m-2 shadow-sm" style="font-size: 0.7rem;">
+                                @p.Badge
+                            </span>
+                        }
+                        <img src="@p.ImageUrl" class="w-100 h-100 object-fit-cover product-img" alt="@p.Name">
+                    </div>
+                    <div class="card-body p-3 d-flex flex-column">
+                        <span class="text-uppercase fw-bold text-warning-emphasis" style="font-size: 0.65rem; letter-spacing: 0.5px;">@p.CategoryName</span>
+                        <h6 class="card-title fw-bold text-dark mb-1 text-truncate" title="@p.Name" style="font-size: 0.95rem;">@p.Name</h6>
+                        <p class="card-text text-muted small mb-3 text-truncate-2 d-none d-sm-block" style="font-size: 0.8rem; line-height: 1.3;">@p.Description</p>
+
+                        <div class="mt-auto d-flex align-items-center justify-content-between pt-2 border-top border-dashed min-w-0">
+                            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-baseline gap-0 gap-sm-1.5 min-w-0 me-1">
+                                @if (p.HasPromo)
+                                {
+                                    <span class="text-muted text-decoration-line-through lh-1 order-1 order-sm-2 mb-1 mb-sm-0" style="font-size: 0.72rem;">@p.BasePrice.ToString("N0")đ</span>
+                                    <span class="fw-extrabold text-danger fs-6 lh-1 order-2 order-sm-1">@p.EffectivePrice.ToString("N0")đ</span>
+                                }
+                                else
+                                {
+                                    <span class="fw-extrabold text-danger fs-6 lh-1">@p.BasePrice.ToString("N0")đ</span>
+                                }
+                            </div>
+                            <button class="btn btn-sm btn-danger rounded-pill px-2.5 px-md-3 py-1 fw-bold text-nowrap flex-shrink-0 shadow-sm" onclick="ECoffee.openCustomizationModal(@p.Id)">
+                                <i class="bi bi-plus-lg"></i> Chọn
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- Latest Promotions & Seasonal News Section -->
+<section class="container-xl my-5 py-3">
+    <div class="text-center max-w-600 mx-auto mb-4">
+        <span class="text-uppercase fw-bold text-danger small tracking-widest">TIN TỨC & ƯU ĐÃI</span>
+        <h2 class="display-6 fw-extrabold text-secondary mb-2">CHƯƠNG TRÌNH KHUYẾN MÃI</h2>
+        <p class="text-muted small">Cập nhật ngay các chương trình ưu đãi hấp dẫn dành riêng cho bạn hôm nay.</p>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        <!-- Promo Card 1 -->
+        <div class="col">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden transition-all">
+                <img src="https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=600&q=80" class="card-img-top" alt="Combo Sáng Năng Lượng" style="height: 200px; object-fit: cover;">
+                <div class="card-body p-4">
+                    <span class="badge bg-danger rounded-pill mb-2">COMBO SÁNG</span>
+                    <h5 class="fw-bold text-dark mb-2">COMBO SÁNG TIẾT KIỆM 25%</h5>
+                    <p class="card-text text-muted small">Thưởng thức 1 Bánh Mỳ Que giòn rụm kết hợp cùng 1 Phin Sữa Đá đậm đà chỉ với 39.000đ từ 07:00 - 10:00 hằng ngày.</p>
+                </div>
+                <div class="card-footer bg-white border-0 px-4 pb-4">
+                    <a href="/Order" class="btn btn-sm btn-outline-danger rounded-pill fw-bold w-100">ÁP DỤNG NGAY</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Promo Card 2 -->
+        <div class="col">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden transition-all">
+                <img src="https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=600&q=80" class="card-img-top" alt="Giảm 30k Đơn Hàng QR" style="height: 200px; object-fit: cover;">
+                <div class="card-body p-4">
+                    <span class="badge bg-warning text-dark rounded-pill mb-2">ƯU ĐÃI QR CODE</span>
+                    <h5 class="fw-bold text-dark mb-2">GIẢM 30.000Đ KHI ORDER TẠI BÀN</h5>
+                    <p class="card-text text-muted small">Quét mã QR Code tại bàn nhận ngay mã giảm giá 30.000đ cho hóa đơn từ 89.000đ khi đặt món trực tuyến.</p>
+                </div>
+                <div class="card-footer bg-white border-0 px-4 pb-4">
+                    <a href="javascript:void(0)" class="btn btn-sm btn-outline-danger rounded-pill fw-bold w-100" onclick="ECoffee.openOrderModeModal()">QUÉT MÃ QR BÀN</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Promo Card 3 -->
+        <div class="col">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden transition-all">
+                <img src="https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80" class="card-img-top" alt="Mua 2 Tặng 1 Freeze" style="height: 200px; object-fit: cover;">
+                <div class="card-body p-4">
+                    <span class="badge bg-success rounded-pill mb-2">MUA 2 TẶNG 1</span>
+                    <h5 class="fw-bold text-dark mb-2">MUA 2 FREEZE TẶNG 1 TRÀ THẠCH</h5>
+                    <p class="card-text text-muted small">Áp dụng cho tất cả đơn hàng giao tận nơi vào thứ 3 và thứ 6 hằng tuần khi đặt qua ứng dụng E-Coffee.</p>
+                </div>
+                <div class="card-footer bg-white border-0 px-4 pb-4">
+                    <a href="/Order?mode=delivery" class="btn btn-sm btn-outline-danger rounded-pill fw-bold w-100">ORDER GIAO HÀNG</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -19,6 +19,9 @@ namespace E_Coffee.Models
         public BarTableStatus Status { get; set; } = BarTableStatus.Empty;
         public int Capacity { get; set; } = 4;
         public int CustomerCount { get; set; } = 0;
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerPhone { get; set; } = string.Empty;
+        public string CustomerNote { get; set; } = string.Empty;
         public DateTime? OccupiedTime { get; set; }
         public List<CartItem> Items { get; set; } = new();
 
@@ -87,5 +90,36 @@ namespace E_Coffee.Models
         public decimal ChangeReturned { get; set; }
         public string Notes { get; set; } = string.Empty;
         public List<CartItem> Items { get; set; } = new();
+    }
+
+    public class BarSaveOrderRequest
+    {
+        public string TargetType { get; set; } = "table"; // "table", "pickup", "delivery"
+        public string TargetId { get; set; } = string.Empty; // Table name/ID, "TAKEAWAY", or existing OrderId
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerPhone { get; set; } = string.Empty;
+        public string CustomerNote { get; set; } = string.Empty;
+        public decimal DiscountAmount { get; set; }
+        public List<CartItem> Items { get; set; } = new();
+    }
+
+    public class BarSaveOrderResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string TargetType { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
+        public string DisplayTitle { get; set; } = string.Empty;
+    }
+
+    public class CustomerLookupResult
+    {
+        public bool Found { get; set; }
+        public string CustomerPhone { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerNote { get; set; } = string.Empty;
+        public int TotalOrders { get; set; } = 1;
+        public string MemberTier { get; set; } = "Thành viên";
+        public string LastOrderSummary { get; set; } = string.Empty;
     }
 }

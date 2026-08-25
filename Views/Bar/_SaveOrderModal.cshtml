@@ -1,0 +1,95 @@
+<!-- Modal Lưu Đơn Hàng & Nhập Thông Tin Khách Hàng (Customer Save Order Modal) -->
+<div class="modal fade" id="saveOrderModal" tabindex="-1" aria-labelledby="saveOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header bg-dark text-white py-3 px-3.5" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;">
+                <h5 class="modal-title fs-6 fw-bold d-flex align-items-center gap-2" id="saveOrderModalLabel">
+                    <div class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                        <i class="bi bi-person-vcard-fill fs-6"></i>
+                    </div>
+                    <span>Lưu Đơn Hàng & Thông Tin Khách</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-3.5">
+                <!-- Order Summary Banner -->
+                <div class="p-2.5 rounded-3 mb-3 bg-light border d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">Mục tiêu lưu đơn</div>
+                        <div class="fw-extrabold text-danger fs-6" id="saveModalTargetTitle">Bàn 02</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted" style="font-size: 0.72rem;">Số lượng món & Tạm tính</div>
+                        <div class="fw-bold text-dark font-monospace" style="font-size: 0.88rem;">
+                            <span id="saveModalItemCount">0</span> món • <span class="text-danger fw-extrabold" id="saveModalTotal">0đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Phone Number with Auto-Lookup -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="saveCustPhone" class="form-label fw-bold small text-dark mb-0">
+                            <i class="bi bi-telephone-fill text-danger me-1"></i>Số điện thoại khách hàng:
+                        </label>
+                        <span class="text-muted style-italic" style="font-size: 0.72rem;">(Tự động tra cứu khách quen)</span>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-search"></i></span>
+                        <input type="tel" class="form-control font-monospace border-start-0 ps-1" id="saveCustPhone" placeholder="Nhập SĐT khách (VD: 0988 123 456)..." oninput="ECoffeeBar.onPhoneInput(this.value)" autocomplete="off">
+                        <button class="btn btn-outline-secondary btn-sm px-2.5" type="button" onclick="document.getElementById('saveCustPhone').value=''; ECoffeeBar.onPhoneInput(''); document.getElementById('saveCustPhone').focus();" title="Xóa">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+
+                    <!-- Customer Lookup Status Feedback Box -->
+                    <div id="custLookupFeedback" class="mt-2 p-2 rounded-2 border" style="display: none; font-size: 0.76rem;">
+                        <!-- JS injected: Found VIP / New customer -->
+                    </div>
+                </div>
+
+                <!-- Input Customer Name -->
+                <div class="mb-3">
+                    <label for="saveCustName" class="form-label fw-bold small text-dark mb-1">
+                        <i class="bi bi-person-fill text-primary me-1"></i>Tên khách hàng:
+                    </label>
+                    <input type="text" class="form-control fw-semibold" id="saveCustName" placeholder="Nhập tên khách (VD: Anh Hùng, Chị Mai...)" autocomplete="off">
+                    
+                    <!-- Quick Customer Name Presets -->
+                    <div class="d-flex flex-wrap gap-1 mt-1.5 align-items-center">
+                        <span class="text-muted style-italic me-1" style="font-size: 0.7rem;">Gợi ý nhanh:</span>
+                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.7rem;" onclick="ECoffeeBar.setQuickCustName('Khách lẻ')">Khách lẻ</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.7rem;" onclick="ECoffeeBar.setQuickCustName('Khách quen')">Khách quen</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.7rem;" onclick="ECoffeeBar.setQuickCustName('Anh ')">Anh</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.7rem;" onclick="ECoffeeBar.setQuickCustName('Chị ')">Chị</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" style="font-size: 0.7rem;" onclick="ECoffeeBar.setQuickCustName('Khách mang đi')">Khách mang đi</button>
+                    </div>
+                </div>
+
+                <!-- Input Order / Customer Note -->
+                <div class="mb-2">
+                    <label for="saveCustNote" class="form-label fw-bold small text-dark mb-1">
+                        <i class="bi bi-chat-left-text-fill text-warning me-1"></i>Ghi chú đơn hàng / Yêu cầu riêng:
+                    </label>
+                    <input type="text" class="form-control" id="saveCustNote" placeholder="Ví dụ: Ít đá, làm gấp, thanh toán sau..." autocomplete="off">
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light py-2.5 px-3 justify-content-between">
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-weight-bold" data-bs-dismiss="modal">
+                    Đóng
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light border text-secondary btn-sm rounded-pill fw-bold px-3" onclick="ECoffeeBar.confirmSaveOrderFromModal(true)" title="Lưu nhanh không cần SĐT">
+                        Khách Vãng Lai
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm rounded-pill fw-bold px-4 d-flex align-items-center gap-1.5 shadow-sm" onclick="ECoffeeBar.confirmSaveOrderFromModal(false)">
+                        <i class="bi bi-floppy-fill"></i>
+                        <span>Xác Nhận Lưu Đơn</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

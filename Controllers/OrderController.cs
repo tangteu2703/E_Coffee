@@ -47,6 +47,13 @@ namespace E_Coffee.Controllers
         }
 
         [HttpGet]
+        public IActionResult GetProducts(int categoryId = 0, string search = "")
+        {
+            var products = _catalogService.GetProducts(categoryId, search);
+            return Json(products);
+        }
+
+        [HttpGet]
         public IActionResult GetProductDetail(int id)
         {
             var product = _catalogService.GetProductById(id);
@@ -55,6 +62,26 @@ namespace E_Coffee.Controllers
                 return NotFound(new { message = "Không tìm thấy sản phẩm" });
             }
             return Json(product);
+        }
+
+        [HttpPost]
+        public IActionResult ValidateVoucher([FromBody] VoucherValidationRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Code))
+            {
+                return BadRequest(new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = "Vui lòng nhập mã voucher hợp lệ"
+                });
+            }
+
+            var result = _catalogService.ValidateVoucher(request.Code, request.OrderAmount);
+            if (!result.IsValid)
+            {
+                return BadRequest(result);
+            }
+            return Json(result);
         }
     }
 }

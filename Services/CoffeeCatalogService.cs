@@ -1,492 +1,362 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using E_Coffee.Models;
+using E_Coffee.Repositories;
 
 namespace E_Coffee.Services
 {
+    /// <summary>
+    /// Business Logic Service xử lý toàn bộ nghiệp vụ danh mục, sản phẩm, tính toán giảm giá voucher, đặt bàn, POS
+    /// Gọi gián tiếp xuống tầng Repository để truy vấn dữ liệu từ CSDL
+    /// </summary>
     public class CoffeeCatalogService : ICoffeeCatalogService
     {
-        private readonly List<Category> _categories;
-        private readonly List<Product> _products;
-        private readonly List<ToppingOption> _toppings;
-        private readonly List<SizeOption> _sizes;
-        private static readonly List<BarTableItem> _tables = new();
-        private static readonly List<BarOnlineOrderItem> _onlineOrders = new();
+        private readonly ICategoryRepository _categoryRepo;
+        private readonly IProductRepository _productRepo;
+        private readonly IVoucherRepository _voucherRepo;
+        private readonly ITableRepository _tableRepo;
+        private readonly IOrderRepository _orderRepo;
 
-        public CoffeeCatalogService()
+        public CoffeeCatalogService(
+            ICategoryRepository categoryRepo,
+            IProductRepository productRepo,
+            IVoucherRepository voucherRepo,
+            ITableRepository tableRepo,
+            IOrderRepository orderRepo)
         {
-            _categories = new List<Category>
-            {
-                new Category { Id = 1, Name = "Cà Phê Phin", Icon = "bi-cup-hot-fill", Slug = "ca-phe-phin", DisplayOrder = 1, Description = "Đậm đà hương vị truyền thống Việt Nam" },
-                new Category { Id = 2, Name = "Freeze Hoàng Gia", Icon = "bi-snow2", Slug = "freeze-hoang-gia", DisplayOrder = 2, Description = "Đá xay thơm béo thạch dai ngon" },
-                new Category { Id = 3, Name = "Trà Thạch & Trái Cây", Icon = "bi-cup-straw", Slug = "tra-thach", DisplayOrder = 3, Description = "Thanh mát hương hoa trái sảng khoái" },
-                new Category { Id = 4, Name = "Bánh Mỳ & Snacking", Icon = "bi-pie-chart-fill", Slug = "banh-my-snacking", DisplayOrder = 4, Description = "Bánh mỳ que giòn rụm & bánh ngọt ngon khó cưỡng" },
-                new Category { Id = 5, Name = "Cà Phê Chai & Đóng Gói", Icon = "bi-box-seam-fill", Slug = "ca-phe-chai", DisplayOrder = 5, Description = "Tiện lợi thưởng thức mọi lúc mọi nơi" }
-            };
-
-            _toppings = new List<ToppingOption>
-            {
-                new ToppingOption { Id = 101, Name = "Thạch Cà Phê", Price = 10000 },
-                new ToppingOption { Id = 102, Name = "Thạch Đào", Price = 10000 },
-                new ToppingOption { Id = 103, Name = "Hạt Sen Bùi", Price = 12000 },
-                new ToppingOption { Id = 104, Name = "Kem Phô Mai Cheese", Price = 15000 },
-                new ToppingOption { Id = 105, Name = "Thạch Củ Năng", Price = 10000 },
-                new ToppingOption { Id = 106, Name = "Extra Shot Espresso", Price = 15000 }
-            };
-
-            _sizes = new List<SizeOption>
-            {
-                new SizeOption { Code = "S", Name = "Nhỏ (S)", ExtraPrice = 0 },
-                new SizeOption { Code = "M", Name = "Vừa (M)", ExtraPrice = 6000 },
-                new SizeOption { Code = "L", Name = "Lớn (L)", ExtraPrice = 12000 }
-            };
-
-            _products = new List<Product>
-            {
-                // Cà Phê Phin
-                new Product
-                {
-                    Id = 1,
-                    CategoryId = 1,
-                    CategoryName = "Cà Phê Phin",
-                    Name = "Phin Sữa Đá",
-                    BasePrice = 29000,
-                    PromoPrice = 24000,
-                    Badge = "Bán Chạy",
-                    Description = "Hương vị cà phê phin đậm đà nguyên chất kết hợp cùng lớp sữa đặc béo ngậy truyền thống Cà Phê Hoàng Gia.",
-                    ImageUrl = "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 2,
-                    CategoryId = 1,
-                    CategoryName = "Cà Phê Phin",
-                    Name = "Phin Đen Đá",
-                    BasePrice = 29000,
-                    Badge = "Đón Đầu",
-                    Description = "Dành cho tín đồ cà phê đích thực. Vị đắng nồng nàn thơm lừng lưu lại nơi hậu vị.",
-                    ImageUrl = "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 3,
-                    CategoryId = 1,
-                    CategoryName = "Cà Phê Phin",
-                    Name = "PhinDi Hạnh Nhân",
-                    BasePrice = 39000,
-                    PromoPrice = 33000,
-                    Badge = "Must Try",
-                    Description = "Cà phê Phin thế hệ mới hòa quyện sốt Hạnh Nhân béo ngậy bùi bùi và lớp foam mịn màng.",
-                    ImageUrl = "https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 4,
-                    CategoryId = 1,
-                    CategoryName = "Cà Phê Phin",
-                    Name = "Bạc Xỉu Đá",
-                    BasePrice = 35000,
-                    Badge = "Yêu Thích",
-                    Description = "Ngọt ngào êm dịu với lượng sữa tươi nhiều hơn, quyện chút cà phê phin thơm lừng.",
-                    ImageUrl = "https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-
-                // Freeze Hoàng Gia
-                new Product
-                {
-                    Id = 5,
-                    CategoryId = 2,
-                    CategoryName = "Freeze Hoàng Gia",
-                    Name = "Freeze Trà Xanh",
-                    BasePrice = 49000,
-                    PromoPrice = 39000,
-                    Badge = "Bán Chạy",
-                    Description = "Trà xanh Uji Nhật Bản đá xay mát lạnh, kết hợp thạch trà xanh giòn sần sật và kem tươi thơm béo.",
-                    ImageUrl = "https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 6,
-                    CategoryId = 2,
-                    CategoryName = "Freeze Hoàng Gia",
-                    Name = "Freeze Cà Phê Phin",
-                    BasePrice = 49000,
-                    Badge = "Hot",
-                    Description = "Thức uống đá xay đậm vị cà phê phin Hoàng Gia đặc trưng, giòn ngon cùng thạch cà phê dai dai.",
-                    ImageUrl = "https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 7,
-                    CategoryId = 2,
-                    CategoryName = "Freeze Hoàng Gia",
-                    Name = "Cookies & Cream Freeze",
-                    BasePrice = 55000,
-                    Badge = "Mới",
-                    Description = "Bánh quy sô-cô-la xay mịn cùng kem sữa thơm ngon, phủ lớp vụn bánh giòn rụm bên trên.",
-                    ImageUrl = "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-
-                // Trà Thạch & Trái Cây
-                new Product
-                {
-                    Id = 8,
-                    CategoryId = 3,
-                    CategoryName = "Trà Thạch & Trái Cây",
-                    Name = "Trà Sen Vàng (Signature)",
-                    BasePrice = 45000,
-                    PromoPrice = 39000,
-                    Badge = "Signature",
-                    Description = "Trà Ô Long đậm vị hòa quyện hạt sen bùi ngọt, củ năng giòn rụm và lớp kem phô mai cheese béo ngậy.",
-                    ImageUrl = "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 9,
-                    CategoryId = 3,
-                    CategoryName = "Trà Thạch & Trái Cây",
-                    Name = "Trà Thạch Đào",
-                    BasePrice = 45000,
-                    Badge = "Bán Chạy",
-                    Description = "Trà đào thanh mát kết hợp những miếng đào ngâm giòn ngọt mọng nước cùng thạch đào dẻo ngon.",
-                    ImageUrl = "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-                new Product
-                {
-                    Id = 10,
-                    CategoryId = 3,
-                    CategoryName = "Trà Thạch & Trái Cây",
-                    Name = "Trà Thanh Đào Sả",
-                    BasePrice = 45000,
-                    Badge = "Hot",
-                    Description = "Sự kết hợp độc đáo giữa vị trà thơm ngát, nước sả tươi ấm áp và vị đào dịu ngọt sảng khoái.",
-                    ImageUrl = "https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = _sizes,
-                    AvailableToppings = _toppings
-                },
-
-                // Bánh Mỳ & Snacking
-                new Product
-                {
-                    Id = 11,
-                    CategoryId = 4,
-                    CategoryName = "Bánh Mỳ & Snacking",
-                    Name = "Bánh Mỳ Que Gà Xé Phô Mai",
-                    BasePrice = 19000,
-                    Badge = "Giòn Rụm",
-                    Description = "Bánh mỳ que nướng nóng hổi nhân thịt gà xé đậm đà phết phô mai thơm ngon quyến rũ.",
-                    ImageUrl = "https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = new List<SizeOption> { _sizes[0] },
-                    AvailableToppings = new List<ToppingOption>()
-                },
-                new Product
-                {
-                    Id = 12,
-                    CategoryId = 4,
-                    CategoryName = "Bánh Mỳ & Snacking",
-                    Name = "Bánh Tiramisu Hoàng Gia",
-                    BasePrice = 35000,
-                    Badge = "Ngon Khó Cưỡng",
-                    Description = "Bánh mousse mềm mịn đượm vị espresso thơm nồng và lớp bột cacao nguyên chất đắng nhẹ.",
-                    ImageUrl = "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = new List<SizeOption> { _sizes[0] },
-                    AvailableToppings = new List<ToppingOption>()
-                },
-
-                // Cà Phê Chai & Đóng Gói
-                new Product
-                {
-                    Id = 13,
-                    CategoryId = 5,
-                    CategoryName = "Cà Phê Chai & Đóng Gói",
-                    Name = "Cà Phê Phin Sữa Đá Chai 330ml",
-                    BasePrice = 49000,
-                    Badge = "Pha Sẵn",
-                    Description = "Chai cà phê phin sữa đá 330ml pha sẵn ướp lạnh, tiện lợi mang đi làm, giữ trọn vị thơm đậm.",
-                    ImageUrl = "https://images.unsplash.com/photo-1600093463592-8e36ae95ef56?auto=format&fit=crop&w=600&q=80",
-                    AvailableSizes = new List<SizeOption> { _sizes[0] },
-                    AvailableToppings = _toppings
-                }
-            };
-
-            InitMockBarData();
+            _categoryRepo = categoryRepo;
+            _productRepo = productRepo;
+            _voucherRepo = voucherRepo;
+            _tableRepo = tableRepo;
+            _orderRepo = orderRepo;
         }
 
-        private void InitMockBarData()
+        public List<Category> GetCategories()
         {
-            if (_tables.Count == 0)
-            {
-                // Khởi tạo 12 bàn trong quán
-                for (int i = 1; i <= 12; i++)
-                {
-                    var tableNumber = i < 10 ? $"Bàn 0{i}" : $"Bàn {i}";
-                    var zone = i <= 6 ? "Tầng 1 - Trong nhà" : (i <= 10 ? "Tầng 2 - Máy lạnh" : "Sân vườn");
-                    var status = BarTableStatus.Empty;
-                    var items = new List<CartItem>();
-                    System.DateTime? occupiedTime = null;
-                    int custCount = 0;
-
-                    // Giả lập bàn 02, 05, 08 đang có khách
-                    if (i == 2)
-                    {
-                        status = BarTableStatus.Occupied;
-                        occupiedTime = System.DateTime.Now.AddMinutes(-35);
-                        custCount = 2;
-                        items.Add(new CartItem
-                        {
-                            ProductId = 1,
-                            ProductName = "Phin Sữa Đá",
-                            ProductImage = _products[0].ImageUrl,
-                            SelectedSize = _sizes[1], // Size M (+6k) -> 35k
-                            SugarLevel = "100%",
-                            IceLevel = "70%",
-                            UnitBasePrice = 29000,
-                            Quantity = 2,
-                            SelectedToppings = new List<ToppingOption> { _toppings[0] } // Thạch cà phê +10k -> 45k/ly -> 90k
-                        });
-                        items.Add(new CartItem
-                        {
-                            ProductId = 11,
-                            ProductName = "Bánh Mỳ Que Gà Xé Phô Mai",
-                            ProductImage = _products[10].ImageUrl,
-                            SelectedSize = _sizes[0],
-                            UnitBasePrice = 19000,
-                            Quantity = 1
-                        });
-                    }
-                    else if (i == 5)
-                    {
-                        status = BarTableStatus.Occupied;
-                        occupiedTime = System.DateTime.Now.AddMinutes(-15);
-                        custCount = 4;
-                        items.Add(new CartItem
-                        {
-                            ProductId = 8,
-                            ProductName = "Trà Sen Vàng (Signature)",
-                            ProductImage = _products[7].ImageUrl,
-                            SelectedSize = _sizes[2], // Size L (+12k) -> 57k
-                            SugarLevel = "70%",
-                            IceLevel = "100%",
-                            UnitBasePrice = 45000,
-                            Quantity = 2
-                        });
-                        items.Add(new CartItem
-                        {
-                            ProductId = 5,
-                            ProductName = "Freeze Trà Xanh",
-                            ProductImage = _products[4].ImageUrl,
-                            SelectedSize = _sizes[1],
-                            UnitBasePrice = 49000,
-                            Quantity = 2
-                        });
-                    }
-                    else if (i == 8)
-                    {
-                        status = BarTableStatus.Occupied;
-                        occupiedTime = System.DateTime.Now.AddMinutes(-50);
-                        custCount = 3;
-                        items.Add(new CartItem
-                        {
-                            ProductId = 3,
-                            ProductName = "PhinDi Hạnh Nhân",
-                            ProductImage = _products[2].ImageUrl,
-                            SelectedSize = _sizes[1],
-                            UnitBasePrice = 39000,
-                            Quantity = 3
-                        });
-                    }
-
-                    _tables.Add(new BarTableItem
-                    {
-                        TableId = $"T{i}",
-                        TableName = tableNumber,
-                        Zone = zone,
-                        Status = status,
-                        CustomerCount = custCount,
-                        OccupiedTime = occupiedTime,
-                        Items = items
-                    });
-                }
-            }
-
-            if (_onlineOrders.Count == 0)
-            {
-                // Khởi tạo các đơn hàng online mẫu
-                _onlineOrders.Add(new BarOnlineOrderItem
-                {
-                    OrderId = "#ORD-1024",
-                    CustomerName = "Nguyễn Văn An",
-                    CustomerPhone = "0988 123 456",
-                    OrderType = OrderType.Delivery,
-                    DeliveryAddress = "Tòa B, Vincom Center, 72 Lê Thánh Tôn, Q.1",
-                    OrderTime = System.DateTime.Now.AddMinutes(-10),
-                    Status = BarOnlineOrderStatus.Pending,
-                    CustomerNote = "Ít đá, giao trước 11h30 giúp em",
-                    Items = new List<CartItem>
-                    {
-                        new CartItem
-                        {
-                            ProductId = 1,
-                            ProductName = "Phin Sữa Đá",
-                            ProductImage = _products[0].ImageUrl,
-                            SelectedSize = _sizes[1],
-                            SugarLevel = "100%",
-                            IceLevel = "50%",
-                            UnitBasePrice = 29000,
-                            Quantity = 2
-                        },
-                        new CartItem
-                        {
-                            ProductId = 9,
-                            ProductName = "Trà Thạch Đào",
-                            ProductImage = _products[8].ImageUrl,
-                            SelectedSize = _sizes[2],
-                            SugarLevel = "70%",
-                            IceLevel = "100%",
-                            UnitBasePrice = 45000,
-                            Quantity = 1
-                        }
-                    }
-                });
-
-                _onlineOrders.Add(new BarOnlineOrderItem
-                {
-                    OrderId = "#ORD-1025",
-                    CustomerName = "Trần Thị Mai",
-                    CustomerPhone = "0909 888 999",
-                    OrderType = OrderType.Pickup,
-                    DeliveryAddress = "Khách tự scan & chọn mang đi",
-                    OrderTime = System.DateTime.Now.AddMinutes(-18),
-                    Status = BarOnlineOrderStatus.Preparing,
-                    CustomerNote = "Cho nhiều thạch trà xanh",
-                    Items = new List<CartItem>
-                    {
-                        new CartItem
-                        {
-                            ProductId = 5,
-                            ProductName = "Freeze Trà Xanh",
-                            ProductImage = _products[4].ImageUrl,
-                            SelectedSize = _sizes[2],
-                            SugarLevel = "100%",
-                            IceLevel = "100%",
-                            UnitBasePrice = 49000,
-                            Quantity = 2
-                        }
-                    }
-                });
-
-                _onlineOrders.Add(new BarOnlineOrderItem
-                {
-                    OrderId = "#ORD-1026",
-                    CustomerName = "Lê Hoàng Nam",
-                    CustomerPhone = "0977 654 321",
-                    OrderType = OrderType.Pickup,
-                    DeliveryAddress = "Khách hẹn 11h45 ghé lấy",
-                    OrderTime = System.DateTime.Now.AddMinutes(-5),
-                    Status = BarOnlineOrderStatus.Pending,
-                    CustomerNote = "Cà phê phin béo, không đường",
-                    Items = new List<CartItem>
-                    {
-                        new CartItem
-                        {
-                            ProductId = 3,
-                            ProductName = "PhinDi Hạnh Nhân",
-                            ProductImage = _products[2].ImageUrl,
-                            SelectedSize = _sizes[1],
-                            SugarLevel = "30%",
-                            IceLevel = "70%",
-                            UnitBasePrice = 39000,
-                            Quantity = 1
-                        }
-                    }
-                });
-            }
+            return _categoryRepo.GetAll();
         }
-
-        public List<Category> GetCategories() => _categories.OrderBy(c => c.DisplayOrder).ToList();
 
         public List<Product> GetProducts(int categoryId = 0, string searchQuery = "")
         {
-            var query = _products.AsQueryable();
-
-            if (categoryId > 0)
-            {
-                query = query.Where(p => p.CategoryId == categoryId);
-            }
-
-            if (!string.IsNullOrWhiteSpace(searchQuery))
-            {
-                var keyword = searchQuery.Trim().ToLower();
-                query = query.Where(p => p.Name.ToLower().Contains(keyword) || p.Description.ToLower().Contains(keyword));
-            }
-
-            return query.ToList();
+            return _productRepo.GetAll(categoryId, searchQuery);
         }
 
         public Product? GetProductById(int id)
         {
-            return _products.FirstOrDefault(p => p.Id == id);
+            return _productRepo.GetById(id);
         }
 
-        public List<ToppingOption> GetGlobalToppings() => _toppings;
-        public List<SizeOption> GetGlobalSizes() => _sizes;
+        public List<ToppingOption> GetGlobalToppings()
+        {
+            return _productRepo.GetToppings();
+        }
 
-        public List<BarTableItem> GetBarTables() => _tables;
-        public List<BarOnlineOrderItem> GetBarOnlineOrders() => _onlineOrders;
+        public List<SizeOption> GetGlobalSizes()
+        {
+            return _productRepo.GetSizes();
+        }
+
+        public List<BarTableItem> GetBarTables()
+        {
+            return _tableRepo.GetAll();
+        }
+
+        public List<BarOnlineOrderItem> GetBarOnlineOrders()
+        {
+            return _orderRepo.GetOnlineOrders();
+        }
+
+        public List<Voucher> GetActiveVouchers()
+        {
+            return _voucherRepo.GetAll();
+        }
+
+        public VoucherValidationResult ValidateVoucher(string code, decimal orderAmount)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = "Vui lòng nhập mã voucher"
+                };
+            }
+
+            var voucher = _voucherRepo.GetByCode(code);
+            if (voucher == null || !voucher.IsActive)
+            {
+                return new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = "Mã voucher không tồn tại hoặc đã hết hạn"
+                };
+            }
+
+            // Kiểm tra ngày hiệu lực
+            if (voucher.StartDate.HasValue && DateTime.Now < voucher.StartDate.Value)
+            {
+                return new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = "Mã voucher chưa đến thời gian áp dụng"
+                };
+            }
+
+            if (voucher.EndDate.HasValue && DateTime.Now > voucher.EndDate.Value)
+            {
+                return new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = "Mã voucher đã hết hạn sử dụng"
+                };
+            }
+
+            // Kiểm tra số lần sử dụng tối đa
+            if (voucher.UsageLimit.HasValue && voucher.UsedCount >= voucher.UsageLimit.Value)
+            {
+                return new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = "Mã voucher đã đạt giới hạn lượt sử dụng"
+                };
+            }
+
+            // Kiểm tra giá trị đơn hàng tối thiểu
+            if (orderAmount < voucher.MinOrderAmount)
+            {
+                return new VoucherValidationResult
+                {
+                    IsValid = false,
+                    Message = $"Đơn hàng cần tối thiểu {voucher.MinOrderAmount:N0}đ để áp dụng voucher này"
+                };
+            }
+
+            // Tính số tiền giảm giá
+            decimal discount = 0;
+            if (voucher.DiscountType == VoucherDiscountType.Percent)
+            {
+                discount = Math.Round(orderAmount * (voucher.DiscountValue / 100m));
+                if (voucher.MaxDiscountAmount.HasValue && voucher.MaxDiscountAmount.Value > 0 && discount > voucher.MaxDiscountAmount.Value)
+                {
+                    discount = voucher.MaxDiscountAmount.Value;
+                }
+            }
+            else // FixedAmount
+            {
+                discount = Math.Min(orderAmount, voucher.DiscountValue);
+            }
+
+            var finalAmount = Math.Max(0, orderAmount - discount);
+
+            return new VoucherValidationResult
+            {
+                IsValid = true,
+                Message = $"Áp dụng thành công voucher {voucher.Code}",
+                Code = voucher.Code,
+                Name = voucher.Name,
+                Type = voucher.DiscountType == VoucherDiscountType.Percent ? "percent" : "fixed",
+                Value = voucher.DiscountValue,
+                DiscountAmount = discount,
+                FinalAmount = finalAmount
+            };
+        }
 
         public bool CheckoutBarOrder(BarCheckoutRequest request)
         {
+            if (request == null) return false;
+
             if (request.TargetType == "table")
             {
-                var table = _tables.FirstOrDefault(t => t.TableName.Equals(request.TargetId, System.StringComparison.OrdinalIgnoreCase) || t.TableId.Equals(request.TargetId, System.StringComparison.OrdinalIgnoreCase));
-                if (table != null)
-                {
-                    table.Status = BarTableStatus.Empty;
-                    table.Items.Clear();
-                    table.OccupiedTime = null;
-                    table.CustomerCount = 0;
-                    return true;
-                }
+                _tableRepo.ResetTable(request.TargetId);
             }
-            else if (request.TargetType == "online")
+            else if (request.TargetType == "online" || request.TargetType == "pickup" || request.TargetType == "delivery")
             {
-                var order = _onlineOrders.FirstOrDefault(o => o.OrderId.Equals(request.TargetId, System.StringComparison.OrdinalIgnoreCase));
-                if (order != null)
+                _orderRepo.UpdateOnlineOrderStatus(request.TargetId, BarOnlineOrderStatus.Completed);
+            }
+
+            // Ghi nhận tăng lượt dùng voucher nếu có áp dụng
+            if (request.DiscountAmount > 0 && !string.IsNullOrWhiteSpace(request.Notes) && request.Notes.StartsWith("Voucher:"))
+            {
+                var code = request.Notes.Replace("Voucher:", "").Trim();
+                _voucherRepo.UpdateUsage(code);
+            }
+
+            return true;
+        }
+
+        public BarSaveOrderResult SaveBarOrder(BarSaveOrderRequest request)
+        {
+            if (request == null || request.Items == null || request.Items.Count == 0)
+            {
+                return new BarSaveOrderResult
                 {
-                    order.Status = BarOnlineOrderStatus.Completed;
-                    return true;
+                    Success = false,
+                    Message = "Đơn hàng chưa có món nào để lưu!"
+                };
+            }
+
+            if (request.TargetType == "table")
+            {
+                _tableRepo.SaveTableOrder(request.TargetId, request.Items, 1, request.CustomerName, request.CustomerPhone, request.CustomerNote);
+                return new BarSaveOrderResult
+                {
+                    Success = true,
+                    Message = $"Đã lưu đơn thành công cho {request.TargetId}!",
+                    TargetType = "table",
+                    TargetId = request.TargetId,
+                    DisplayTitle = request.TargetId
+                };
+            }
+            else
+            {
+                // Xử lý đơn mang đi / Đơn online
+                var isNewTakeaway = string.IsNullOrWhiteSpace(request.TargetId) || 
+                                    request.TargetId.Equals("TAKEAWAY", StringComparison.OrdinalIgnoreCase);
+
+                if (isNewTakeaway)
+                {
+                    var randomCode = new Random().Next(100, 999);
+                    var orderId = $"#MD-{DateTime.Now:HHmm}-{randomCode}";
+
+                    var newOrder = new BarOnlineOrderItem
+                    {
+                        OrderId = orderId,
+                        CustomerName = string.IsNullOrWhiteSpace(request.CustomerName) ? "Khách mang đi" : request.CustomerName.Trim(),
+                        CustomerPhone = request.CustomerPhone?.Trim() ?? string.Empty,
+                        CustomerNote = request.CustomerNote?.Trim() ?? string.Empty,
+                        OrderType = OrderType.Pickup,
+                        DeliveryAddress = "Đến lấy / Mang đi tại quầy",
+                        OrderTime = DateTime.Now,
+                        Status = BarOnlineOrderStatus.Pending,
+                        Items = request.Items
+                    };
+
+                    _orderRepo.AddOnlineOrder(newOrder);
+
+                    return new BarSaveOrderResult
+                    {
+                        Success = true,
+                        Message = $"Đã tạo và lưu đơn mang đi {orderId} thành công!",
+                        TargetType = "pickup",
+                        TargetId = orderId,
+                        DisplayTitle = $"Đến Lấy {orderId}"
+                    };
+                }
+                else
+                {
+                    var existingOrder = _orderRepo.GetOnlineOrderById(request.TargetId);
+                    if (existingOrder != null)
+                    {
+                        existingOrder.Items = request.Items;
+                        if (!string.IsNullOrWhiteSpace(request.CustomerName)) existingOrder.CustomerName = request.CustomerName.Trim();
+                        if (!string.IsNullOrWhiteSpace(request.CustomerPhone)) existingOrder.CustomerPhone = request.CustomerPhone.Trim();
+                        if (!string.IsNullOrWhiteSpace(request.CustomerNote)) existingOrder.CustomerNote = request.CustomerNote.Trim();
+
+                        return new BarSaveOrderResult
+                        {
+                            Success = true,
+                            Message = $"Đã cập nhật đơn {request.TargetId} thành công!",
+                            TargetType = request.TargetType,
+                            TargetId = request.TargetId,
+                            DisplayTitle = request.TargetId
+                        };
+                    }
+                    else
+                    {
+                        return new BarSaveOrderResult
+                        {
+                            Success = false,
+                            Message = $"Không tìm thấy đơn hàng {request.TargetId} để cập nhật."
+                        };
+                    }
                 }
             }
-            return true;
         }
 
         public bool UpdateOnlineOrderStatus(string orderId, BarOnlineOrderStatus status)
         {
-            var order = _onlineOrders.FirstOrDefault(o => o.OrderId.Equals(orderId, System.StringComparison.OrdinalIgnoreCase));
-            if (order != null)
+            _orderRepo.UpdateOnlineOrderStatus(orderId, status);
+            return true;
+        }
+
+        public CustomerLookupResult FindCustomerByPhone(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone))
             {
-                order.Status = status;
-                return true;
+                return new CustomerLookupResult { Found = false };
             }
-            return false;
+
+            var cleanPhone = new string(phone.Where(char.IsDigit).ToArray());
+            if (cleanPhone.Length < 4)
+            {
+                return new CustomerLookupResult { Found = false };
+            }
+
+            // 1. Tìm trong danh sách đơn Online
+            var orders = _orderRepo.GetOnlineOrders();
+            var matchedOrder = orders.FirstOrDefault(o =>
+                !string.IsNullOrWhiteSpace(o.CustomerPhone) &&
+                new string(o.CustomerPhone.Where(char.IsDigit).ToArray()).EndsWith(cleanPhone));
+
+            if (matchedOrder != null)
+            {
+                return new CustomerLookupResult
+                {
+                    Found = true,
+                    CustomerPhone = matchedOrder.CustomerPhone,
+                    CustomerName = matchedOrder.CustomerName,
+                    CustomerNote = matchedOrder.CustomerNote,
+                    MemberTier = "Khách thân thiết",
+                    TotalOrders = 5,
+                    LastOrderSummary = $"Đơn gần nhất: {matchedOrder.OrderId}"
+                };
+            }
+
+            // 2. Tìm trong danh sách bàn hiện tại
+            var tables = _tableRepo.GetAll();
+            var matchedTable = tables.FirstOrDefault(t =>
+                !string.IsNullOrWhiteSpace(t.CustomerPhone) &&
+                new string(t.CustomerPhone.Where(char.IsDigit).ToArray()).EndsWith(cleanPhone));
+
+            if (matchedTable != null)
+            {
+                return new CustomerLookupResult
+                {
+                    Found = true,
+                    CustomerPhone = matchedTable.CustomerPhone,
+                    CustomerName = matchedTable.CustomerName,
+                    CustomerNote = matchedTable.CustomerNote,
+                    MemberTier = "Thành viên",
+                    TotalOrders = 3,
+                    LastOrderSummary = $"Đang ngồi tại {matchedTable.TableName}"
+                };
+            }
+
+            // 3. Khách hàng mẫu phổ biến
+            var sampleCustomers = new List<(string Phone, string Name, string Tier, int Orders)>
+            {
+                ("0988123456", "Nguyễn Văn An", "Khách VIP Kim Cương", 24),
+                ("0909888999", "Trần Thị Mai", "Khách VIP Vàng", 12),
+                ("0977654321", "Lê Hoàng Nam", "Khách Thân Thiết", 8),
+                ("0912345678", "Hoàng Nam", "Thành Viên", 3),
+                ("0933456789", "Thu Trang", "Thành Viên Bạc", 5)
+            };
+
+            var sample = sampleCustomers.FirstOrDefault(s => s.Phone.EndsWith(cleanPhone) || cleanPhone.EndsWith(s.Phone));
+            if (sample != default)
+            {
+                return new CustomerLookupResult
+                {
+                    Found = true,
+                    CustomerPhone = sample.Phone,
+                    CustomerName = sample.Name,
+                    MemberTier = sample.Tier,
+                    TotalOrders = sample.Orders,
+                    LastOrderSummary = $"Tích lũy {sample.Orders * 10} điểm"
+                };
+            }
+
+            return new CustomerLookupResult { Found = false, CustomerPhone = phone };
         }
     }
 }

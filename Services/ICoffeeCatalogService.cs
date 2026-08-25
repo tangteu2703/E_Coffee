@@ -12,7 +12,11 @@ namespace E_Coffee.Services
         List<SizeOption> GetGlobalSizes();
         List<BarTableItem> GetBarTables();
         List<BarOnlineOrderItem> GetBarOnlineOrders();
+        VoucherValidationResult ValidateVoucher(string code, decimal orderAmount);
+        List<Voucher> GetActiveVouchers();
         bool CheckoutBarOrder(BarCheckoutRequest request);
+        BarSaveOrderResult SaveBarOrder(BarSaveOrderRequest request);
         bool UpdateOnlineOrderStatus(string orderId, BarOnlineOrderStatus status);
+        CustomerLookupResult FindCustomerByPhone(string phone);
     }
 }

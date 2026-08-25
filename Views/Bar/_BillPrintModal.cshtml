@@ -5,7 +5,7 @@
             <div class="modal-header bg-dark text-white py-2.5 px-3">
                 <h5 class="modal-title fs-6 fw-bold d-flex align-items-center gap-2" id="billPrintModalLabel">
                     <i class="bi bi-printer-fill text-warning"></i>
-                    <span>Xem Trước & In Hóa Đơn (Bill 80mm)</span>
+                    <span class="text-white">Xem Trước & In Hóa Đơn (Bill 80mm)</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -15,8 +15,8 @@
                 <div id="printableBill" class="bill-paper">
                     <div class="text-center">
                         <h5 class="fw-black mb-1" style="font-size: 1.1rem; letter-spacing: -0.5px;">HOÀNG GIA E-COFFEE</h5>
-                        <div style="font-size: 0.72rem; color: #444;">Đ/C: Vincom Center, 72 Lê Thánh Tôn, Q.1</div>
-                        <div style="font-size: 0.72rem; color: #444;">Hotline: 1900 1234 - Wifi: Hoàng Gia Coffee</div>
+                        <div style="font-size: 0.72rem; color: #444;">Đ/C: Số 66 Phùng Chí Kiên - Đường Hào - Hưng Yên</div>
+                        <div style="font-size: 0.72rem; color: #444;">Hotline: 1900 1234</div>
                     </div>
 
                     <div class="bill-divider"></div>
@@ -29,6 +29,7 @@
                         <span id="billDateTime">24/08/2026 17:15</span>
                     </div>
                     <div style="font-size: 0.75rem;" id="billTargetName">Vị trí: <strong>Bàn 02</strong></div>
+                    <div style="font-size: 0.75rem;" id="billCustomerRow">Khách hàng: <strong id="billCustomerName">Khách vãng lai</strong></div>
                     <div style="font-size: 0.75rem;">Thu ngân: <strong>Pha Chế Ca 1</strong></div>
 
                     <div class="bill-divider"></div>
@@ -64,6 +65,9 @@
                         <span>TỔNG CỘNG:</span>
                         <span id="billTotal">0đ</span>
                     </div>
+                    <div class="text-end fst-italic text-secondary" style="font-size: 0.68rem; margin-top: 1px;" id="billTotalWords">
+                        (Bằng chữ: ...)
+                    </div>
                     <div class="d-flex justify-content-between" style="font-size: 0.75rem; margin-top: 3px;">
                         <span>Khách đưa:</span>
                         <span id="billCashGiven">0đ</span>
@@ -78,9 +82,20 @@
                     <div class="text-center mt-2">
                         <div style="font-size: 0.75rem; font-weight: bold;">Cảm ơn quý khách & Hẹn gặp lại!</div>
                         <div style="font-size: 0.68rem; color: #666; margin-top: 2px;">Pass Wifi: hoanggiacoffee2026</div>
-                        <!-- Mock Barcode -->
-                        <div class="mt-2 font-monospace" style="font-size: 0.7rem; letter-spacing: 3px; background: #eee; padding: 4px; display: inline-block;">
-                            ||||| ||| |||| |||||| ||||
+                        <!-- VietQR Payment QR Code -->
+                        <div class="mt-2 text-center">
+                            <div class="fw-bold mb-1 text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px; color: #111;">
+                                <i class="bi bi-qr-code-scan me-1"></i>Quét QR thanh toán (VietQR)
+                            </div>
+                            <div class="d-inline-block p-1 bg-white border border-dark rounded-2 my-1" style="box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                                <img id="billQrCodeImg" src="" alt="VietQR Thanh Toán" style="width: 135px; height: 135px; object-fit: contain; display: block; margin: 0 auto;" />
+                            </div>
+                            <div class="mt-1 font-monospace" style="font-size: 0.68rem; line-height: 1.35; color: #333;">
+                                <div><strong>Ngân hàng:</strong> <span id="billBankName">VPBank</span></div>
+                                <div><strong>STK:</strong> <span id="billAccountNo" class="fw-bold text-dark">2227036888</span></div>
+                                <div><strong>Chủ TK:</strong> <span id="billAccountName" class="text-uppercase">HOANG GIA E-COFFEE</span></div>
+                                <div class="text-muted fst-italic" style="font-size: 0.62rem; margin-top: 2px;">(Mở App Ngân hàng hoặc Ví để quét mã)</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -90,7 +105,7 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill font-weight-bold" data-bs-dismiss="modal">Đóng</button>
                 <button type="button" class="btn btn-dark btn-sm rounded-pill fw-bold px-4 d-flex align-items-center gap-2" onclick="ECoffeeBar.triggerPrint()">
                     <i class="bi bi-printer-fill text-warning"></i>
-                    <span>In Hóa Đơn Now</span>
+                    <span>In Hóa Đơn</span>
                 </button>
             </div>
         </div>

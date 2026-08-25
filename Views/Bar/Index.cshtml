@@ -25,7 +25,7 @@
         </div>
 
         <div class="text-muted style-italic" style="font-size: 0.78rem;">
-            <i class="bi bi-info-circle me-1"></i>Hệ thống tự động đồng bộ bàn và đơn đặt từ khách hàng
+            <i class="bi bi-info-circle me-1"></i>Dữ liệu đồng bộ trực tiếp qua từ cơ sở dữ liệu
         </div>
     </div>
 
@@ -48,7 +48,7 @@
                     <button class="nav-link w-100" id="tab-menu-btn" type="button" role="tab" onclick="ECoffeeBar.switchTab('menu')">
                         <i class="bi bi-cup-straw me-1"></i>
                         <span>THỰC ĐƠN ORDER (TẠI QUẦY)</span>
-                        <span class="badge-count">@Model.Products.Count món</span>
+                        <span class="badge-count" id="tabMenuBadge">@Model.Products.Count món</span>
                     </button>
                 </li>
             </ul>
@@ -93,6 +93,12 @@
                                 <div class="mt-2 pt-1.5 border-top">
                                     @if (table.Status == E_Coffee.Models.BarTableStatus.Occupied)
                                     {
+                                        if (!string.IsNullOrWhiteSpace(table.CustomerName))
+                                        {
+                                            <div class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.75rem;">
+                                                <i class="bi bi-person-fill text-primary me-0.5"></i>@table.CustomerName @(!string.IsNullOrWhiteSpace(table.CustomerPhone) ? $"({table.CustomerPhone})" : "")
+                                            </div>
+                                        }
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="style-italic" style="font-size: 0.72rem; color: #ea580c;"><i class="bi bi-clock"></i> @table.DisplayDuration</span>
                                             <div class="d-flex align-items-center gap-1">
@@ -161,7 +167,7 @@
 
                     <div class="online-grid" id="pickupOrdersGrid">
                         <!-- Action Card: + Tạo Đơn Mang Đi Mới Tại Quầy -->
-                        <div class="online-item-card border-dashed d-flex flex-column align-items-center justify-content-center text-center p-3" style="border-style: dashed !important; border-color: #f59e0b !important; background: #fffdfb; min-height: 110px;" onclick="(ECoffeeBar.createTakeawayOrder || ECoffeeBar.resetToCounterOrder)()">
+                        <div class="online-item-card border-dashed d-flex flex-column align-items-center justify-content-center text-center p-3" style="border-style: dashed !important; border-color: #f59e0b !important; background: #fffdfb; min-height: 110px;" onclick="ECoffeeBar.createTakeawayOrder()">
                             <div class="bg-warning bg-opacity-20 text-warning-emphasis rounded-circle d-flex align-items-center justify-content-center mb-1.5" style="width: 32px; height: 32px;">
                                 <i class="bi bi-plus-lg fs-6"></i>
                             </div>
@@ -201,7 +207,7 @@
                 
                 <!-- Category Horizontal Filter & Search -->
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                    <div class="menu-cat-chips flex-fill mb-0">
+                    <div class="menu-cat-chips flex-fill mb-0" id="menuCatChips">
                         <button class="menu-cat-btn active" onclick="ECoffeeBar.filterCategory(0, this)">Tất Cả Món</button>
                         @foreach (var cat in Model.Categories)
                         {
@@ -228,7 +234,7 @@
                                         @prod.Badge
                                     </span>
                                 }
-                                <img src="@prod.ImageUrl" alt="@prod.Name" class="menu-prod-img">
+                                <img src="@prod.ImageUrl" alt="@prod.Name" class="menu-prod-img" onerror="this.src='https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80'">
                             </div>
                             <div class="menu-prod-body">
                                 <div>
@@ -247,7 +253,7 @@
                                             <span class="menu-prod-price">@prod.BasePrice.ToString("N0")đ</span>
                                         }
                                     </div>
-                                    <button type="button" class="btn-add-item-soft" onclick="ECoffeeBar.openProductOptionModal(@prod.Id); event.stopPropagation();">+ Thêm</button>
+                                    <button type="button" class="btn-add-item-soft" onclick="ECoffeeBar.openProductOptionModal(@prod.Id); event.stopPropagation();">Chọn</button>
                                 </div>
                             </div>
                         </div>
@@ -261,10 +267,28 @@
         <!-- CỘT BÊN PHẢI: GIỎ HÀNG, IN BILL & THANH TOÁN -->
         <div class="pos-side-card">
             
-            <!-- Target Order Info Header (1 Hàng Đơn Giản) -->
-            <div class="cart-target-banner d-flex align-items-center justify-content-between py-2 px-3">
-                <span class="text-uppercase fw-bold text-muted" style="font-size: 0.78rem;">Đang phục vụ:</span>
-                <span class="fw-extrabold text-danger fs-6" id="activeTargetTitle">Bàn 02</span>
+            <!-- Target Order Info Header (Có Thông Tin Khách Hàng) -->
+            <div class="cart-target-banner py-2 px-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-1.5 overflow-hidden">
+                        <span class="text-uppercase fw-bold text-muted" style="font-size: 0.76rem;">Đang phục vụ:</span>
+                        <span class="fw-extrabold text-danger fs-6 text-truncate" id="activeTargetTitle">Bàn 02</span>
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none" onclick="ECoffeeBar.clearCurrentCart()" title="Xóa trắng giỏ hàng này" style="font-size: 0.75rem;">
+                        <i class="bi bi-trash3 me-1"></i>Xóa giỏ
+                    </button>
+                </div>
+                <!-- Customer Identity Tag -->
+                <div class="d-flex align-items-center justify-content-between mt-1 pt-1 border-top border-light-subtle" id="cartCustomerRow" style="font-size: 0.74rem;">
+                    <div class="d-flex align-items-center gap-1 text-truncate text-secondary" id="cartCustomerDisplay">
+                        <i class="bi bi-person-circle text-primary"></i>
+                        <span class="fw-bold text-dark text-truncate" id="cartCustomerName">Khách vãng lai</span>
+                        <span class="text-muted font-monospace" id="cartCustomerPhone"></span>
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-primary fw-semibold text-decoration-none" onclick="ECoffeeBar.openCustomerEditModal()" title="Cập nhật thông tin khách">
+                        <i class="bi bi-pencil-square me-0.5"></i>Sửa
+                    </button>
+                </div>
             </div>
 
             <!-- Cart Items Container -->
@@ -272,9 +296,19 @@
                 <!-- JS populated -->
             </div>
 
-            <!-- Cashier Note Field -->
+            <!-- Voucher Input Box (Thay thế ô ghi chú) -->
             <div class="mb-3">
-                <input type="text" class="form-control form-control-sm rounded-3" id="inputCashierNote" placeholder="Ghi chú pha chế (VD: Ít đường, thêm đá...)" style="font-size: 0.8rem;">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="barVoucherInput" class="form-control form-control-sm text-uppercase font-monospace" placeholder="NHẬP MÃ VOUCHER (VD: ECOFFEE10, HE2026)" aria-label="Mã voucher" onkeydown="if(event.key==='Enter') ECoffeeBar.applyVoucher()">
+                    <button class="btn btn-sm btn-outline-danger fw-bold px-3" type="button" onclick="ECoffeeBar.applyVoucher()">Áp dụng</button>
+                </div>
+                <div id="barVoucherFeedback" class="small text-danger mt-1 fw-semibold" style="display: none; font-size: 0.75rem;"></div>
+                <div id="barVoucherAppliedRow" class="d-flex align-items-center justify-content-between text-success small mt-1.5 px-2 py-1 bg-success bg-opacity-10 rounded border border-success-subtle" style="display: none !important;">
+                    <span class="fw-bold" style="font-size: 0.78rem;"><i class="bi bi-ticket-perforated-fill me-1"></i>Đã áp dụng: <span id="barVoucherCodeText"></span></span>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2 text-decoration-none fw-bold" onclick="ECoffeeBar.removeVoucher()" title="Gỡ voucher">
+                        <i class="bi bi-x-circle-fill"></i> Gỡ
+                    </button>
+                </div>
             </div>
 
             <!-- Summary Box -->
@@ -294,16 +328,22 @@
                 </div>
             </div>
 
-            <!-- Refined Action Buttons -->
-            <div class="row g-2">
-                <div class="col-6">
-                    <button type="button" class="btn-pos-action-bill w-100" onclick="ECoffeeBar.openBillModal()">
-                        <i class="bi bi-printer-fill text-dark fs-6"></i>
+            <!-- Refined Action Buttons (3 Nút chuẩn POS: LƯU ĐƠN, IN BILL, THANH TOÁN) -->
+            <div class="row g-1.5">
+                <div class="col-4">
+                    <button type="button" class="btn-pos-action-save w-100" onclick="ECoffeeBar.saveCurrentOrder()" title="Lưu lại món vào bàn / Đơn mang đi">
+                        <i class="bi bi-floppy-fill fs-6"></i>
+                        <span>LƯU ĐƠN</span>
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button type="button" class="btn-pos-action-bill w-100" onclick="ECoffeeBar.openBillModal()" title="In hóa đơn tạm tính">
+                        <i class="bi bi-printer-fill fs-6"></i>
                         <span>IN BILL</span>
                     </button>
                 </div>
-                <div class="col-6">
-                    <button type="button" class="btn-pos-action-pay w-100" onclick="ECoffeeBar.openPaymentModal()">
+                <div class="col-4">
+                    <button type="button" class="btn-pos-action-pay w-100" onclick="ECoffeeBar.openPaymentModal()" title="Thanh toán đơn hàng">
                         <i class="bi bi-wallet2 fs-6"></i>
                         <span>THANH TOÁN</span>
                     </button>
@@ -320,6 +360,7 @@
 <partial name="_ProductModal" />
 <partial name="_BillPrintModal" />
 <partial name="_PaymentModal" />
+<partial name="_SaveOrderModal" />
 
 @section Scripts {
     <script src="~/js/bar.js" asp-append-version="true"></script>

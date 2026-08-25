@@ -15,8 +15,8 @@ const ECoffee = (function () {
     tableNumber: 'Bàn 01',
     customerName: '',
     customerPhone: '',
-    address: 'Vincom Center, Q.1, TP.HCM',
-    storeName: 'Hoàng Gia Vincom Center'
+    address: 'Trạm phát sóng, Phùng Chí Kiên, HY',
+    storeName: 'Hoàng Gia Coffee'
   };
 
   let appliedVoucher = null;
@@ -145,20 +145,48 @@ const ECoffee = (function () {
   function applyVoucherCode(code) {
     const normalizedCode = code.trim().toUpperCase();
     const feedbackEl = document.getElementById('voucherInputFeedback');
-    if (VALID_VOUCHERS[normalizedCode]) {
-      appliedVoucher = VALID_VOUCHERS[normalizedCode];
-      saveVoucher();
-      const input = document.getElementById('voucherCodeInput');
-      if (input) input.value = '';
-      if (feedbackEl) feedbackEl.style.display = 'none';
-      showToast(`Đã áp dụng mã voucher ${normalizedCode}!`, 'success');
-    } else {
-      if (feedbackEl) {
-        feedbackEl.innerText = `Mã "${normalizedCode}" không hợp lệ hoặc đã hết hạn`;
-        feedbackEl.style.display = 'block';
-      }
-      showToast(`Mã "${normalizedCode}" không hợp lệ hoặc đã hết hạn`, 'warning');
+
+    const effectiveSubtotal = cart.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    if (cart.length === 0 || effectiveSubtotal === 0) {
+      showToast('Giỏ hàng đang trống, hãy chọn món trước khi áp dụng voucher', 'warning');
+      return;
     }
+
+    fetch('/Order/ValidateVoucher', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: normalizedCode, orderAmount: effectiveSubtotal })
+    })
+    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+    .then(({ status, body }) => {
+      if (status === 200 && body.isValid) {
+        appliedVoucher = {
+          code: body.code,
+          name: body.name,
+          type: body.type,
+          value: body.value,
+          discountAmount: body.discountAmount
+        };
+        saveVoucher();
+        const input = document.getElementById('voucherCodeInput');
+        if (input) input.value = '';
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        showToast(`Đã áp dụng mã voucher ${body.code} (-${formatVND(body.discountAmount)})!`, 'success');
+      } else {
+        appliedVoucher = null;
+        saveVoucher();
+        const errMsg = body.message || `Mã "${normalizedCode}" không hợp lệ hoặc đã hết hạn`;
+        if (feedbackEl) {
+          feedbackEl.innerText = errMsg;
+          feedbackEl.style.display = 'block';
+        }
+        showToast(errMsg, 'warning');
+      }
+    })
+    .catch(err => {
+      console.error('Error validating voucher:', err);
+      showToast('Không thể kết nối máy chủ kiểm tra voucher', 'danger');
+    });
   }
 
   function removeVoucher() {

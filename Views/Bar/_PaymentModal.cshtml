@@ -14,7 +14,11 @@
                 <div class="bg-light border rounded-3 p-3 text-center mb-3">
                     <div class="text-muted small fw-bold text-uppercase">Số tiền cần thanh toán (<span id="payTargetTitle">Bàn 02</span>)</div>
                     <div class="fs-2 fw-black text-danger font-monospace my-1" id="payFinalAmount">109.000đ</div>
+                    <div class="fw-semibold text-danger-emphasis fst-italic mb-1" style="font-size: 0.8rem;" id="payFinalAmountWords">(Bằng chữ: Một trăm linh chín nghìn đồng)</div>
                     <div class="text-secondary style-italic" style="font-size: 0.78rem;" id="payItemSummary">Gồm 3 món ăn/đồ uống</div>
+                    <div class="text-dark fw-semibold mt-1.5 pt-1.5 border-top" style="font-size: 0.78rem;" id="payCustomerInfo">
+                        <i class="bi bi-person-circle text-primary me-1"></i>Khách hàng: <span class="fw-bold" id="payCustomerName">Khách vãng lai</span>
+                    </div>
                 </div>
 
                 <!-- Payment Methods Tabs -->
@@ -28,10 +32,6 @@
                         <i class="bi bi-qr-code-scan fs-5"></i>
                         <span>Chuyển Khoản QR</span>
                     </button>
-                    <button class="btn btn-outline-danger flex-fill py-2 fw-bold small d-flex flex-column align-items-center gap-1" id="btnPayCard" onclick="ECoffeeBar.selectPayMethod('card')">
-                        <i class="bi bi-credit-card-2-front fs-5"></i>
-                        <span>Thẻ POS</span>
-                    </button>
                 </div>
 
                 <!-- Cash Options Form -->
@@ -40,31 +40,33 @@
                         <label class="form-label fw-bold small text-dark mb-1">Tiền khách đưa:</label>
                         <input type="number" class="form-control form-control-lg fw-bold font-monospace text-primary" id="inputCashGiven" placeholder="Nhập số tiền..." oninput="ECoffeeBar.calculateChange()">
                     </div>
-                    <!-- Quick Cash Suggestion Chips -->
-                    <div class="d-flex flex-wrap gap-1.5 mb-3" id="cashQuickChips">
-                        <!-- Populated dynamically via JS -->
+                    <!-- Quick Cash Suggestion Chips (5 mệnh giá gợi ý) -->
+                    <div class="mb-3">
+                        <div class="text-muted small mb-1.5" style="font-size: 0.72rem;">Gợi ý tiền khách đưa:</div>
+                        <div class="d-flex flex-wrap gap-1.5" id="cashQuickChips">
+                            <!-- Populated dynamically via JS -->
+                        </div>
                     </div>
-                    <div class="p-2.5 rounded-3 bg-warning bg-opacity-15 border border-warning d-flex justify-content-between align-items-center">
-                        <span class="fw-bold text-dark small">Tiền thừa trả lại khách:</span>
-                        <span class="fs-5 fw-extrabold text-success font-monospace" id="payChangeAmount">0đ</span>
+                    <div class="p-2.5 rounded-3 bg-warning bg-opacity-10 border border-warning">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark small">Tiền thừa trả lại khách:</span>
+                            <span class="fs-5 fw-extrabold text-success font-monospace" id="payChangeAmount">0đ</span>
+                        </div>
+                        <div class="text-end fw-semibold text-success fst-italic mt-1" style="font-size: 0.76rem;" id="payChangeAmountWords">
+                            (Bằng chữ: Không đồng)
+                        </div>
                     </div>
                 </div>
 
                 <!-- QR Pay Section -->
                 <div id="qrPaySection" class="d-none text-center py-2">
                     <div class="p-3 border rounded-3 bg-white d-inline-block shadow-sm">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=HOANGGIA_COFFEE_CHECKOUT" alt="VietQR Code" class="img-fluid rounded" style="max-width: 170px;">
+                        <img id="payQrCodeImg" src="" alt="VietQR Code" class="img-fluid rounded" style="max-width: 170px;">
                     </div>
-                    <div class="mt-2 fw-bold text-dark small">Quét mã VietQR / MoMo để chuyển khoản</div>
-                    <div class="text-muted" style="font-size: 0.75rem;">Ngân hàng: MBBank - STK: 9999888899 - Chu So Huu: HOANG GIA COFFEE</div>
+                    <div class="mt-2 fw-bold text-dark small">Quét mã VietQR để chuyển khoản</div>
+                    <div class="text-muted" style="font-size: 0.75rem;" id="payQrBankInfo">Ngân hàng: VPBank - STK: 2227036888 - Chủ TK: HOANG GIA E-COFFEE</div>
                 </div>
-
-                <!-- Card Pay Section -->
-                <div id="cardPaySection" class="d-none text-center py-3">
-                    <i class="bi bi-credit-card-2-back text-primary" style="font-size: 3rem;"></i>
-                    <div class="fw-bold text-dark mt-2">Vui lòng quẹt thẻ trên thiết bị POS quầy</div>
-                    <div class="text-muted small">Đang chờ tín hiệu kết nối từ máy POS...</div>
-                </div>
+              
             </div>
 
             <div class="modal-footer bg-light py-2 px-3">

@@ -1,8 +1,24 @@
+using E_Coffee.Data;
+using E_Coffee.Repositories;
+using E_Coffee.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddSingleton<E_Coffee.Services.ICoffeeCatalogService, E_Coffee.Services.CoffeeCatalogService>();
+
+// 1. Data Context (Database In-Memory Store)
+builder.Services.AddSingleton<MockDbContext>();
+
+// 2. Repository Layer (Data Access)
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
+builder.Services.AddScoped<ITableRepository, TableRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+// 3. Service Layer (Business Logic)
+builder.Services.AddScoped<ICoffeeCatalogService, CoffeeCatalogService>();
 
 var app = builder.Build();
 
@@ -10,7 +26,6 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -24,6 +39,5 @@ app.UseStaticFiles();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
 
 app.Run();

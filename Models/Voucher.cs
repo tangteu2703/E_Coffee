@@ -23,6 +23,29 @@ namespace E_Coffee.Models
         public bool IsActive { get; set; } = true;
         public int? UsageLimit { get; set; }
         public int UsedCount { get; set; } = 0;
+
+        // Validity helpers
+        public bool IsExpired => EndDate.HasValue && DateTime.Now > EndDate.Value;
+        public bool IsUpcoming => StartDate.HasValue && DateTime.Now < StartDate.Value;
+        public bool IsDepleted => UsageLimit.HasValue && UsedCount >= UsageLimit.Value;
+        public bool IsCurrentlyValid => IsActive && !IsExpired && !IsUpcoming && !IsDepleted;
+
+        public string StatusText =>
+            !IsActive ? "Tạm ngưng" :
+            (IsExpired ? "Đã hết hạn" :
+            (IsUpcoming ? "Sắp diễn ra" :
+            (IsDepleted ? "Hết lượt" : "Đang áp dụng")));
+
+        public string StatusBadgeClass =>
+            !IsActive ? "bg-secondary text-white" :
+            (IsExpired ? "bg-danger text-white" :
+            (IsUpcoming ? "bg-warning text-dark" :
+            (IsDepleted ? "bg-dark text-white" : "bg-success text-white")));
+
+        public string FormattedDiscount =>
+            DiscountType == VoucherDiscountType.Percent
+                ? $"{DiscountValue:N0}%"
+                : $"{DiscountValue:N0}đ";
     }
 
     public class VoucherValidationRequest

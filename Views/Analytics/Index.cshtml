@@ -1,0 +1,446 @@
+@model E_Coffee.Models.AnalyticsPageViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Thống Kê Doanh Thu";
+    Layout = "_BarLayout";
+
+    var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    var chartDataJson    = JsonSerializer.Serialize(Model.ChartData,        jsonOpts);
+    var categoryDataJson = JsonSerializer.Serialize(Model.CategoryRevenues,  jsonOpts);
+    var topDataJson      = JsonSerializer.Serialize(Model.TopProducts,       jsonOpts);
+    var detailDataJson   = JsonSerializer.Serialize(Model.DetailRows,        jsonOpts);
+    var kpiDataJson      = JsonSerializer.Serialize(Model.Kpi,              jsonOpts);
+
+    var initialJson = JsonSerializer.Serialize(new {
+        fromDate = Model.FilterFromDate,
+        toDate   = Model.FilterToDate,
+        groupBy  = Model.FilterGroupBy,
+        channel  = Model.FilterChannel
+    }, jsonOpts);
+
+    Func<decimal, string> fmtM = v => v >= 1_000_000
+        ? $"{v / 1_000_000:N1}M đ"
+        : $"{v:N0} đ";
+    Func<double, string> growthClass = v => v > 0 ? "positive" : v < 0 ? "negative" : "neutral";
+    Func<double, string> growthIcon  = v => v > 0 ? "bi-arrow-up-short" : v < 0 ? "bi-arrow-down-short" : "bi-dash";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/analytics.css" asp-append-version="true" />
+}
+
+@* ── JSON data blocks for JS ──────────────────────────────────────────────── *@
+<script id="anInitData"    type="application/json">@Html.Raw(initialJson)</script>
+<script id="anChartData"   type="application/json">@Html.Raw(chartDataJson)</script>
+<script id="anCatData"     type="application/json">@Html.Raw(categoryDataJson)</script>
+<script id="anTopData"     type="application/json">@Html.Raw(topDataJson)</script>
+<script id="anDetailData"  type="application/json">@Html.Raw(detailDataJson)</script>
+<script id="anKpiData"     type="application/json">@Html.Raw(kpiDataJson)</script>
+
+<div class="an-fullscreen">
+
+    @* ── TOP FILTER BAR ────────────────────────────────────────────────────── *@
+    <div class="an-topbar">
+
+        @* Brand *@
+        <div class="an-topbar-brand">
+            <div class="an-topbar-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div>
+                <div class="an-topbar-title">Thống Kê Doanh Thu</div>
+                <div class="an-topbar-sub" id="topbarDateRange">@Model.FilterFromDate – @Model.FilterToDate</div>
+            </div>
+        </div>
+
+        @* Quick presets *@
+        <div class="an-quick-chips">
+            <button class="an-chip" data-preset="today">Hôm nay</button>
+            <button class="an-chip" data-preset="yesterday">Hôm qua</button>
+            <button class="an-chip active" data-preset="7d">7 ngày</button>
+            <button class="an-chip" data-preset="thisweek">Tuần này</button>
+            <button class="an-chip" data-preset="thismonth">Tháng này</button>
+            <button class="an-chip" data-preset="lastmonth">Tháng trước</button>
+        </div>
+
+        <div class="an-sep"></div>
+
+        @* Date range *@
+        <div class="an-filter-group">
+            <span class="an-filter-label">Từ ngày</span>
+            <input type="text" id="filterFrom" class="an-input" placeholder="dd/MM/yyyy"
+                   value="@Model.FilterFromDate" style="width:110px;" />
+        </div>
+        <div class="an-filter-group">
+            <span class="an-filter-label">Đến ngày</span>
+            <input type="text" id="filterTo" class="an-input" placeholder="dd/MM/yyyy"
+                   value="@Model.FilterToDate" style="width:110px;" />
+        </div>
+
+        <input type="hidden" id="filterGroupBy" value="@Model.FilterGroupBy" />
+
+        <div class="an-sep"></div>
+
+        @* Channel *@
+        <div class="an-filter-group">
+            <span class="an-filter-label">Kênh bán</span>
+            <select id="filterChannel" class="an-select" style="width:145px;">
+                <option value="all">Tất cả kênh</option>
+                <option value="dine_in">Tại bàn</option>
+                <option value="delivery">Giao tận nơi</option>
+                <option value="pickup">Mang đi / Đến lấy</option>
+            </select>
+        </div>
+
+        @* Apply *@
+        <button class="an-btn an-btn-primary" id="btnApply">
+            <i class="bi bi-funnel-fill"></i>Áp dụng
+        </button>
+
+        @* Actions *@
+        <div class="an-topbar-actions">
+            <button class="an-btn an-btn-outline" id="btnPrint" title="In báo cáo">
+                <i class="bi bi-printer"></i>
+            </button>
+            <button class="an-btn an-btn-outline" id="btnExport" title="Xuất Excel">
+                <i class="bi bi-file-earmark-excel"></i>
+            </button>
+        </div>
+    </div>
+
+    @* ── KPI STRIP – 6 card hàng ngang ────────────────────────────────────── *@
+    <div class="an-kpi-row" id="kpiRowWrap" style="position:relative;">
+        <div class="an-loading-overlay" id="kpiLoading"><div class="an-spinner"></div></div>
+
+        <div class="an-kpi" data-kpi="revenue">
+            <div class="an-kpi-top">
+                <div class="an-kpi-icon"><i class="bi bi-currency-dollar"></i></div>
+                <span class="kpi-badge @growthClass(Model.Kpi.RevenuePctChange)" id="badgeRevenue">
+                    <i class="bi @growthIcon(Model.Kpi.RevenuePctChange)"></i>@Math.Abs(Model.Kpi.RevenuePctChange).ToString("N1")%
+                </span>
+            </div>
+            <div class="an-kpi-value text-money" id="kpiRevenue">@fmtM(Model.Kpi.TotalRevenue)</div>
+            <div class="an-kpi-label">Tổng doanh thu</div>
+            <div class="an-kpi-sub">Doanh thu gộp kỳ này</div>
+        </div>
+
+        <div class="an-kpi" data-kpi="items">
+            <div class="an-kpi-top">
+                <div class="an-kpi-icon"><i class="bi bi-cup-hot-fill"></i></div>
+                <span class="kpi-badge @growthClass(Model.Kpi.ItemsSoldPctChange)" id="badgeItems">
+                    <i class="bi @growthIcon(Model.Kpi.ItemsSoldPctChange)"></i>@Math.Abs(Model.Kpi.ItemsSoldPctChange).ToString("N1")%
+                </span>
+            </div>
+            <div class="an-kpi-value" id="kpiItems">@Model.Kpi.TotalItemsSold.ToString("N0")</div>
+            <div class="an-kpi-label">Sản phẩm bán</div>
+            <div class="an-kpi-sub">Tổng số ly / món</div>
+        </div>
+
+        <div class="an-kpi" data-kpi="orders">
+            <div class="an-kpi-top">
+                <div class="an-kpi-icon"><i class="bi bi-receipt-cutoff"></i></div>
+                <span class="kpi-badge @growthClass(Model.Kpi.OrdersPctChange)" id="badgeOrders">
+                    <i class="bi @growthIcon(Model.Kpi.OrdersPctChange)"></i>@Math.Abs(Model.Kpi.OrdersPctChange).ToString("N1")%
+                </span>
+            </div>
+            <div class="an-kpi-value" id="kpiOrders">@Model.Kpi.TotalOrders.ToString("N0")</div>
+            <div class="an-kpi-label">Số đơn hàng</div>
+            <div class="an-kpi-sub">Hóa đơn hoàn thành</div>
+        </div>
+
+        <div class="an-kpi" data-kpi="aov">
+            <div class="an-kpi-top">
+                <div class="an-kpi-icon"><i class="bi bi-calculator-fill"></i></div>
+                <span class="kpi-badge @growthClass(Model.Kpi.AovPctChange)" id="badgeAov">
+                    <i class="bi @growthIcon(Model.Kpi.AovPctChange)"></i>@Math.Abs(Model.Kpi.AovPctChange).ToString("N1")%
+                </span>
+            </div>
+            <div class="an-kpi-value text-money" id="kpiAov">@fmtM(Model.Kpi.AverageOrderValue)</div>
+            <div class="an-kpi-label">AOV / Đơn</div>
+            <div class="an-kpi-sub">Average Order Value</div>
+        </div>
+
+        <div class="an-kpi" data-kpi="net">
+            <div class="an-kpi-top">
+                <div class="an-kpi-icon"><i class="bi bi-cash-stack"></i></div>
+                <span style="font-size:.62rem; color:var(--an-txt-muted); font-weight:600;">Thuần</span>
+            </div>
+            <div class="an-kpi-value text-money text-success-bold" id="kpiNet">@fmtM(Model.Kpi.NetRevenue)</div>
+            <div class="an-kpi-label">Doanh thu thuần</div>
+            <div class="an-kpi-sub">Sau giảm giá voucher</div>
+        </div>
+
+        <div class="an-kpi" data-kpi="discount">
+            <div class="an-kpi-top">
+                <div class="an-kpi-icon"><i class="bi bi-tag-fill"></i></div>
+                <span style="font-size:.62rem; color:var(--an-txt-muted); font-weight:600;">GG đã dùng</span>
+            </div>
+            <div class="an-kpi-value text-money" id="kpiDiscount" style="color:#f97316;">@fmtM(Model.Kpi.VoucherDiscount)</div>
+            <div class="an-kpi-label">Giảm giá Voucher</div>
+            <div class="an-kpi-sub">Tổng voucher đã áp dụng</div>
+        </div>
+
+    </div>
+
+    @* ── MAIN GRID ──────────────────────────────────────────────────────────── *@
+    <div class="an-grid">
+
+
+        @* ════════════════════════════════════════════════════════════════════
+           LEFT COLUMN: Combo Chart (top) + Tab Tables (bottom)
+           ════════════════════════════════════════════════════════════════════ *@
+        <div class="an-col-left">
+
+            @* Chart panel *@
+            <div class="an-chart-panel">
+                <div class="an-loading-overlay" id="chartLoading">
+                    <div class="an-spinner"></div>
+                </div>
+
+                <div class="an-panel-header">
+                    <h2 class="an-panel-title">
+                        <span class="an-dot" style="background:var(--an-red);"></span>
+                        Doanh Thu &amp; Sản Phẩm Theo Thời Gian
+                    </h2>
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <div class="an-legend">
+                            <div class="an-legend-item">
+                                <span class="an-legend-rect" style="background:linear-gradient(90deg,#f59e0b,#fbbf24);"></span>
+                                Số lượng (cột – trục trái)
+                            </div>
+                            <div class="an-legend-item">
+                                <span class="an-legend-dot" style="background:#e11d48;"></span>
+                                Doanh thu (đường – trục phải)
+                            </div>
+                        </div>
+                        <div class="an-view-btns">
+                            <button class="an-view-btn active" data-view="all">Tất cả</button>
+                            <button class="an-view-btn" data-view="revenue">Chỉ Doanh thu</button>
+                            <button class="an-view-btn" data-view="quantity">Chỉ Số lượng</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="an-chart-canvas-wrap">
+                    <canvas id="comboChart" aria-label="Biểu đồ doanh thu & sản phẩm"></canvas>
+                </div>
+            </div>
+
+            @* Table panel with tabs *@
+            <div class="an-table-panel">
+
+                @* Tab nav *@
+                <div class="an-tab-nav">
+                    <button class="an-tab-btn active" data-tab="topProducts">
+                        <i class="bi bi-trophy-fill text-warning"></i>
+                        Top Sản Phẩm
+                        <span class="an-tab-badge" id="tabBadgeTop">@Model.TopProducts.Count</span>
+                    </button>
+                    <button class="an-tab-btn" data-tab="detailTable">
+                        <i class="bi bi-table text-primary"></i>
+                        Chi Tiết Doanh Thu
+                        <span class="an-tab-badge" id="tabBadgeDetail">@Model.DetailRows.Count kỳ</span>
+                    </button>
+                    <div style="margin-left:auto; display:flex; align-items:center; gap:8px; padding:0 4px;">
+                        @{
+                            var totOrders = Model.DetailRows.Sum(r => r.Orders);
+                            var totItems  = Model.DetailRows.Sum(r => r.ItemsSold);
+                            var totNet    = Model.DetailRows.Sum(r => r.NetRevenue);
+                        }
+                        <span style="font-size:.65rem; color:var(--an-txt-muted);">Tổng:</span>
+                        <span class="fw-800" style="font-size:.75rem; color:var(--an-red);" id="summaryNet">@fmtM(totNet)</span>
+                        <span style="font-size:.65rem; color:var(--an-txt-muted);" id="summaryItems">· @totItems.ToString("N0") ly</span>
+                    </div>
+                </div>
+
+                @* Tab: Top Products *@
+                <div class="an-tab-content active" id="tab-topProducts">
+                    <div class="an-table-scroll">
+                        <table class="an-table" id="topProductsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:32px;">#</th>
+                                    <th style="text-align:left;">Sản phẩm</th>
+                                    <th>Số lượng</th>
+                                    <th>Doanh thu</th>
+                                    <th>Thị phần</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topProductsTbody">
+                                @foreach (var p in Model.TopProducts)
+                                {
+                                    <tr>
+                                        <td><div class="prod-rank @(p.Rank==1?"rank-1":p.Rank==2?"rank-2":p.Rank==3?"rank-3":"rank-other")">@p.Rank</div></td>
+                                        <td>
+                                            <div class="prod-name-cell">
+                                                <img src="@p.ImageUrl" alt="@p.Name" class="prod-img-sm" loading="lazy" />
+                                                <div>
+                                                    <div class="prod-name">@p.Name</div>
+                                                    <div class="prod-cat">@p.CategoryName</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="fw-700">@p.QuantitySold.ToString("N0") ly</td>
+                                        <td class="text-money text-danger-bold">@fmtM(p.Revenue)</td>
+                                        <td>
+                                            <div class="share-bar-wrap">
+                                                <div class="share-bar-track">
+                                                    <div class="share-bar-fill" style="width:@p.SharePct%"></div>
+                                                </div>
+                                                <span class="share-pct-text">@p.SharePct%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @* Tab: Detail table *@
+                <div class="an-tab-content" id="tab-detailTable">
+                    <div class="an-table-scroll">
+                        <table class="an-table" id="detailTable">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;">Kỳ / Ngày</th>
+                                    <th>Đơn</th>
+                                    <th>Số lượng</th>
+                                    <th>Doanh thu gộp</th>
+                                    <th>Giảm giá</th>
+                                    <th>DT Thuần</th>
+                                    <th>AOV</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailTbody">
+                                @foreach (var r in Model.DetailRows)
+                                {
+                                    <tr>
+                                        <td class="fw-700">@r.Label</td>
+                                        <td>@r.Orders</td>
+                                        <td>@r.ItemsSold.ToString("N0")</td>
+                                        <td class="text-money">@fmtM(r.GrossRevenue)</td>
+                                        <td class="text-money text-muted-sm">@(r.Discounts > 0 ? "-"+fmtM(r.Discounts) : "—")</td>
+                                        <td class="text-money text-success-bold">@fmtM(r.NetRevenue)</td>
+                                        <td class="text-money">@fmtM(r.AvgOrderValue)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot id="detailTfoot">
+                                @{
+                                    var ftOrders = Model.DetailRows.Sum(r => r.Orders);
+                                    var ftItems  = Model.DetailRows.Sum(r => r.ItemsSold);
+                                    var ftGross  = Model.DetailRows.Sum(r => r.GrossRevenue);
+                                    var ftDisc   = Model.DetailRows.Sum(r => r.Discounts);
+                                    var ftNet    = Model.DetailRows.Sum(r => r.NetRevenue);
+                                    var ftAvg    = ftOrders > 0 ? ftNet / ftOrders : 0;
+                                }
+                                <td>Tổng cộng</td>
+                                <td>@ftOrders</td>
+                                <td>@ftItems.ToString("N0")</td>
+                                <td class="text-money">@fmtM(ftGross)</td>
+                                <td class="text-money text-muted-sm">@(ftDisc > 0 ? "-"+fmtM(ftDisc) : "—")</td>
+                                <td class="text-money text-success-bold">@fmtM(ftNet)</td>
+                                <td class="text-money">@fmtM(ftAvg)</td>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        @* ════════════════════════════════════════════════════════════════════
+           RIGHT COLUMN: Channel breakdown + Donut
+           ════════════════════════════════════════════════════════════════════ *@
+        <div class="an-col-right" style="position:relative;">
+
+            <div class="an-loading-overlay" id="rightLoading">
+                <div class="an-spinner"></div>
+            </div>
+
+            @* ── Channel Breakdown ── *@
+            <div class="an-card">
+                <div class="an-card-body">
+                    <div class="an-card-head">
+                        <h3 class="an-card-title">
+                            <span class="an-dot" style="background:#3b82f6;"></span>
+                            Kênh Bán Hàng
+                        </h3>
+                        <span style="font-size:.65rem; color:var(--an-txt-muted);">
+                            <i class="bi bi-clock me-1"></i>Cao điểm: <strong id="kpiPeakHour">@Model.Kpi.PeakHour</strong>
+                        </span>
+                    </div>
+                    <div class="an-channel-list" id="channelList">
+                        @{
+                            decimal maxRev = Math.Max(1, Math.Max(Model.Kpi.DineInRevenue, Math.Max(Model.Kpi.DeliveryRevenue, Model.Kpi.PickupRevenue)));
+                            var chDefs = new[]
+                            {
+                                new { Name="Tại Bàn (Dine-in)", Icon="bi-shop",           Color="#e11d48", ColorA="rgba(225,29,72,.12)",  Rev=Model.Kpi.DineInRevenue,   Pct=Model.Kpi.DineInPct,   Orders=Model.Kpi.DineInOrders   },
+                                new { Name="Giao Tận Nơi",       Icon="bi-truck",           Color="#3b82f6", ColorA="rgba(59,130,246,.12)", Rev=Model.Kpi.DeliveryRevenue, Pct=Model.Kpi.DeliveryPct, Orders=Model.Kpi.DeliveryOrders },
+                                new { Name="Mang Đi / Đến Lấy",  Icon="bi-bag-check-fill",  Color="#10b981", ColorA="rgba(16,185,129,.12)", Rev=Model.Kpi.PickupRevenue,   Pct=Model.Kpi.PickupPct,   Orders=Model.Kpi.PickupOrders   }
+                            };
+                        }
+                        @foreach (var ch in chDefs)
+                        {
+                            double barPct = maxRev == 0 ? 0 : Math.Round((double)(ch.Rev / maxRev) * 100, 1);
+                            <div class="an-ch-item">
+                                <div class="an-ch-top">
+                                    <div class="an-ch-name">
+                                        <div class="an-ch-badge" style="background:@ch.ColorA;">
+                                            <i class="bi @ch.Icon" style="color:@ch.Color;"></i>
+                                        </div>
+                                        @ch.Name
+                                    </div>
+                                    <div class="an-ch-stats">
+                                        <strong style="color:@ch.Color;">@fmtM(ch.Rev)</strong> · @ch.Orders đơn (@ch.Pct.ToString("N0")%)
+                                    </div>
+                                </div>
+                                <div class="an-ch-track">
+                                    <div class="an-ch-fill" style="background:@ch.Color; width:@barPct%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* ── Category Donut ── *@
+            <div class="an-card">
+                <div class="an-card-body">
+                    <div class="an-card-head">
+                        <h3 class="an-card-title">
+                            <span class="an-dot" style="background:#f59e0b;"></span>
+                            Cơ Cấu Theo Danh Mục
+                        </h3>
+                    </div>
+                    <div class="an-donut-wrap" style="margin-bottom:14px;">
+                        <canvas id="categoryDonutChart" width="170" height="170"
+                                aria-label="Biểu đồ cơ cấu doanh thu theo danh mục"></canvas>
+                        <div class="an-donut-center">
+                            <div class="an-donut-val" id="donutTotal">@fmtM(Model.CategoryRevenues.Sum(c => c.Revenue))</div>
+                            <div class="an-donut-sub">Tổng DT</div>
+                        </div>
+                    </div>
+                    <ul class="an-cat-list" id="categoryLegendList">
+                        @foreach (var cat in Model.CategoryRevenues)
+                        {
+                            <li class="an-cat-item">
+                                <span class="an-cat-dot" style="background:@cat.Color;"></span>
+                                <span class="an-cat-name" title="@cat.Name">@cat.Name</span>
+                                <span class="an-cat-pct">@cat.SharePct%</span>
+                                <span class="an-cat-rev text-money">@fmtM(cat.Revenue)</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="~/js/analytics.js" asp-append-version="true"></script>
+}

@@ -113,30 +113,30 @@
     overflow: hidden;
 }
 
-/* Custom Nav Pills for Tab Switching */
+/* Custom Nav Pills for Tab Switching (Compact SM) */
 .pos-nav-pills {
     background: #f1f5f9;
-    padding: 0.3rem;
-    border-radius: 12px;
+    padding: 0.2rem;
+    border-radius: 8px;
     display: flex;
-    gap: 0.3rem;
-    margin-bottom: 1.25rem;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
 }
 
 .pos-nav-pills .nav-link {
     flex: 1;
-    border-radius: 10px;
-    font-weight: 700;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
     color: #64748b;
-    padding: 0.6rem 1rem;
+    padding: 0.35rem 0.6rem;
     text-align: center;
     border: none;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
 }
 
 .pos-nav-pills .nav-link:hover {
@@ -147,12 +147,12 @@
 .pos-nav-pills .nav-link.active {
     background: #ffffff;
     color: #C8102E;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .pos-nav-pills .badge-count {
-    font-size: 0.72rem;
-    padding: 0.2rem 0.55rem;
+    font-size: 0.68rem;
+    padding: 0.12rem 0.45rem;
     border-radius: 50px;
     background: #e2e8f0;
     color: #475569;

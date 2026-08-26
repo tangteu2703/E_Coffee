@@ -123,8 +123,48 @@ const ECoffeeBar = (function () {
         return result.charAt(0).toUpperCase() + result.slice(1);
     }
 
+    // Helper định dạng thời lượng khách đã ngồi tại bàn tính theo thời gian thực phía Client
+    function formatOccupiedDuration(occupiedTime) {
+        if (!occupiedTime) return '';
+        const occDate = new Date(occupiedTime);
+        if (isNaN(occDate.getTime())) return '';
+        const now = new Date();
+        const diffMs = Math.max(0, now.getTime() - occDate.getTime());
+        const totalMinutes = Math.floor(diffMs / 60000);
+        if (totalMinutes < 60) {
+            return `${totalMinutes} phút`;
+        }
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        return `${hours}h ${mins}m`;
+    }
+
+    // Tự động cập nhật số phút/giờ đã ngồi trên tất cả các thẻ bàn đang hoạt động
+    function updateTableDurationTimers() {
+        const timerEls = document.querySelectorAll('.table-duration-timer');
+        timerEls.forEach(el => {
+            const occTime = el.getAttribute('data-occupied-time');
+            if (occTime) {
+                const textSpan = el.querySelector('.duration-text');
+                const formatted = formatOccupiedDuration(occTime);
+                if (textSpan && formatted) {
+                    textSpan.textContent = formatted;
+                }
+            }
+        });
+    }
+
+    let durationTimerInterval = null;
+    function startDurationTimer() {
+        if (durationTimerInterval) clearInterval(durationTimerInterval);
+        updateTableDurationTimers();
+        // Cập nhật lại mỗi 5 giây để nhảy số chính xác ngay khi tròn phút
+        durationTimerInterval = setInterval(updateTableDurationTimers, 5000);
+    }
+
     function init() {
         startClock();
+        startDurationTimer();
         loadInitialData(false);
     }
 
@@ -221,6 +261,8 @@ const ECoffeeBar = (function () {
             const statusText = isOccupied ? 'Đang ngồi' : 'Trống';
             const statusPillClass = isOccupied ? 'status-occupied' : 'status-empty';
             const isSelected = (currentTarget.type === 'table' && currentTarget.name === table.tableName) ? 'selected' : '';
+            const occTime = table.occupiedTime || table.OccupiedTime || '';
+            const durationDisplay = isOccupied ? (formatOccupiedDuration(occTime) || table.displayDuration || 'Mới ngồi') : '';
 
             html += `
                 <div class="table-item-card ${statusClass} ${isSelected}" data-table-id="${table.tableId}" data-table-name="${table.tableName}" onclick="ECoffeeBar.selectTable('${table.tableName}')">
@@ -240,7 +282,9 @@ const ECoffeeBar = (function () {
                                 </div>
                             ` : ''}
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="style-italic" style="font-size: 0.72rem; color: #ea580c;"><i class="bi bi-clock"></i> ${table.displayDuration || 'Mới ngồi'}</span>
+                                <span class="style-italic table-duration-timer" data-occupied-time="${occTime}" style="font-size: 0.72rem; color: #ea580c;">
+                                    <i class="bi bi-clock"></i> <span class="duration-text">${durationDisplay}</span>
+                                </span>
                                 <div class="d-flex align-items-center gap-1">
                                     <span class="fw-bold text-secondary" style="font-size: 0.72rem;">${table.itemCount} món -</span>
                                     <span class="table-amount mb-0" style="font-size: 0.85rem;">${(table.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
@@ -760,18 +804,25 @@ const ECoffeeBar = (function () {
     }
 
     // Modal In Bill (Print Receipt)
-    function openBillModal() {
-        if (cartItems.length === 0) {
+    function openBillModal(billData = null) {
+        const items = (billData && billData.items) ? billData.items : cartItems;
+        const target = (billData && billData.target) ? billData.target : currentTarget;
+        const customer = (billData && billData.customer) ? billData.customer : currentCustomer;
+        const discount = (billData && billData.discount !== undefined) ? billData.discount : currentDiscount;
+        const cashGivenVal = (billData && billData.cashGiven !== undefined) ? billData.cashGiven : (document.getElementById('inputCashGiven')?.value ? parseFloat(document.getElementById('inputCashGiven').value) : 0);
+        const changeReturnedVal = (billData && billData.changeReturned !== undefined) ? billData.changeReturned : (parseFloat(document.getElementById('payChangeAmount')?.textContent?.replace(/[^0-9]/g, '') || '0'));
+
+        if (!items || items.length === 0) {
             Swal.fire('Thông báo', 'Đơn hàng chưa có món nào để in bill!', 'warning');
             return;
         }
 
-        document.getElementById('billTargetName').innerHTML = `Vị trí: <strong>${currentTarget.name}</strong>`;
+        document.getElementById('billTargetName').innerHTML = `Vị trí: <strong>${target.name}</strong>`;
         document.getElementById('billNumber').textContent = `#HD-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const billCustNameEl = document.getElementById('billCustomerName');
         if (billCustNameEl) {
-            billCustNameEl.textContent = currentCustomer.name ? `${currentCustomer.name} ${currentCustomer.phone ? `(${currentCustomer.phone})` : ''}` : 'Khách vãng lai';
+            billCustNameEl.textContent = customer.name ? `${customer.name} ${customer.phone ? `(${customer.phone})` : ''}` : 'Khách vãng lai';
         }
 
         const now = new Date();
@@ -780,7 +831,7 @@ const ECoffeeBar = (function () {
         let bodyHtml = '';
         let subtotal = 0;
 
-        cartItems.forEach(item => {
+        items.forEach(item => {
             const itemSinglePrice = (item.unitBasePrice + (item.selectedSize ? item.selectedSize.extraPrice : 0) + (item.selectedToppings ? item.selectedToppings.reduce((a, b) => a + b.price, 0) : 0));
             const itemTotal = itemSinglePrice * item.quantity;
             subtotal += itemTotal;
@@ -809,10 +860,10 @@ const ECoffeeBar = (function () {
             `;
         });
 
-        const finalAmount = Math.max(0, subtotal - currentDiscount);
+        const finalAmount = Math.max(0, subtotal - discount);
         document.getElementById('billItemsBody').innerHTML = bodyHtml;
         document.getElementById('billSubtotal').textContent = subtotal.toLocaleString('vi-VN') + 'đ';
-        document.getElementById('billDiscount').textContent = currentDiscount.toLocaleString('vi-VN') + 'đ';
+        document.getElementById('billDiscount').textContent = discount.toLocaleString('vi-VN') + 'đ';
         document.getElementById('billTotal').textContent = finalAmount.toLocaleString('vi-VN') + 'đ';
         
         const billTotalWordsEl = document.getElementById('billTotalWords');
@@ -820,12 +871,12 @@ const ECoffeeBar = (function () {
             billTotalWordsEl.textContent = `(Bằng chữ: ${readVietnameseCurrency(finalAmount)})`;
         }
 
-        document.getElementById('billCashGiven').textContent = (document.getElementById('inputCashGiven')?.value ? parseInt(document.getElementById('inputCashGiven').value).toLocaleString('vi-VN') + 'đ' : '0đ');
-        document.getElementById('billChangeReturned').textContent = document.getElementById('payChangeAmount')?.textContent || '0đ';
+        document.getElementById('billCashGiven').textContent = (cashGivenVal || 0).toLocaleString('vi-VN') + 'đ';
+        document.getElementById('billChangeReturned').textContent = (changeReturnedVal || 0).toLocaleString('vi-VN') + 'đ';
 
         // Sinh mã VietQR động theo số tiền thực tế của hóa đơn
         const billNumber = document.getElementById('billNumber')?.textContent?.replace('#', '') || 'HD';
-        const transferDesc = `${billNumber} ${currentTarget.name.replace(/[^a-zA-Z0-9 ]/g, '')}`.trim();
+        const transferDesc = `${billNumber} ${target.name.replace(/[^a-zA-Z0-9 ]/g, '')}`.trim();
         const qrUrl = generateVietQrUrl(finalAmount, transferDesc);
 
         const billQrImg = document.getElementById('billQrCodeImg');
@@ -1017,6 +1068,18 @@ const ECoffeeBar = (function () {
             noteStr = `Voucher: ${appliedVoucher.code} | ${noteStr}`.trim();
         }
 
+        const billSnapshot = {
+            target: JSON.parse(JSON.stringify(currentTarget)),
+            customer: JSON.parse(JSON.stringify(currentCustomer)),
+            items: JSON.parse(JSON.stringify(cartItems)),
+            subtotal: subtotal,
+            discount: currentDiscount,
+            finalAmount: finalAmount,
+            cashGiven: cashGiven,
+            changeReturned: change,
+            voucher: appliedVoucher ? JSON.parse(JSON.stringify(appliedVoucher)) : null
+        };
+
         const reqBody = {
             targetType: currentTarget.type,
             targetId: currentTarget.id === 'TAKEAWAY' ? currentTarget.name : currentTarget.id,
@@ -1046,18 +1109,19 @@ const ECoffeeBar = (function () {
                 delete draftCarts[oldKey];
                 cartItems = [];
                 appliedVoucher = null;
+                currentCustomer = { name: currentTarget.type === 'table' ? currentTarget.name : 'Khách vãng lai', phone: '', note: '' };
                 updateCartUI();
 
                 Swal.fire({
                     icon: 'success',
                     title: 'Thanh toán thành công!',
-                    text: `Đã hoàn tất đơn ${currentTarget.name}. Bạn có muốn in hóa đơn ngay không?`,
+                    text: `Đã hoàn tất đơn ${billSnapshot.target.name}. Bạn có muốn in hóa đơn ngay không?`,
                     showCancelButton: true,
                     confirmButtonText: 'In Bill Ngay',
                     cancelButtonText: 'Đóng'
                 }).then((res) => {
                     if (res.isConfirmed) {
-                        openBillModal();
+                        openBillModal(billSnapshot);
                     }
                     // Tải lại dữ liệu bàn và đơn online từ DB qua AJAX
                     loadInitialData(true);

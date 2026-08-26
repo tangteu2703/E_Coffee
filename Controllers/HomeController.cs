@@ -17,7 +17,7 @@ namespace E_Coffee.Controllers
         public IActionResult Index()
         {
             var categories = _catalogService.GetCategories();
-            var bestSellers = _catalogService.GetProducts().Where(p => p.Badge == "Bán Chạy" || p.Badge == "Signature").ToList();
+            var bestSellers = _catalogService.GetProducts().Where(p => p.Badge == "Bán Chạy" || p.Badge == "Signature").Take(4).ToList();
             
             ViewBag.Categories = categories;
             ViewBag.BestSellers = bestSellers;

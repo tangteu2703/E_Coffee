@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using E_Coffee.Models;
 using E_Coffee.Services;
 
 namespace E_Coffee.Controllers
 {
+    [Authorize(Roles = "Admin,Manager,Staff")]
     public class BarController : Controller
     {
         private readonly ICoffeeCatalogService _catalogService;

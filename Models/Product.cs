@@ -11,10 +11,13 @@ namespace E_Coffee.Models
         public string Description { get; set; } = string.Empty;
         public decimal BasePrice { get; set; }
         public decimal? PromoPrice { get; set; }
+        public decimal CostPrice { get; set; } // Giá nhập / Giá vốn nguyên liệu
         public bool HasPromo => PromoPrice.HasValue && PromoPrice.Value > 0 && PromoPrice.Value < BasePrice;
         public decimal EffectivePrice => HasPromo ? PromoPrice!.Value : BasePrice;
+        public decimal ProfitPerUnit => EffectivePrice - CostPrice;
+        public decimal ProfitMarginPercent => EffectivePrice > 0 ? System.Math.Round((EffectivePrice - CostPrice) * 100 / EffectivePrice, 1) : 0;
         public string ImageUrl { get; set; } = string.Empty;
-        public string Badge { get; set; } = string.Empty; // "Bán Chạy", "Mới", "Hot"
+        public string Badge { get; set; } = string.Empty; // "Bán Chạy", "Mới", "Hot", "Signature"
         public List<SizeOption> AvailableSizes { get; set; } = new();
         public List<ToppingOption> AvailableToppings { get; set; } = new();
         public List<string> SugarLevels { get; set; } = new() { "100%", "70%", "50%", "30%", "Không đường" };

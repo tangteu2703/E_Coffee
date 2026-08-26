@@ -1,0 +1,156 @@
+@model E_Coffee.Models.LoginViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Đăng Nhập - Hoàng Gia E-Coffee";
+    var isLoggedOut = ViewContext.HttpContext.Request.Query["logout"] == "1";
+    var hasReturnUrl = !string.IsNullOrEmpty(Model.ReturnUrl);
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <meta name="description" content="Đăng nhập hệ thống quản lý Hoàng Gia E-Coffee." />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="~/image/logo_hoanggia.png" asp-append-version="true">
+    <link rel="shortcut icon" type="image/png" href="~/image/logo_hoanggia.png" asp-append-version="true">
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3.3 CSS & Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Luxury Login CSS -->
+    <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
+</head>
+<body class="login-page-body">
+
+    <!-- Ambient Glowing Orbs -->
+    <div class="login-ambient-orb login-ambient-orb-1"></div>
+    <div class="login-ambient-orb login-ambient-orb-2"></div>
+
+    <!-- Main Container -->
+    <div class="login-wrapper">
+        <div class="login-card">
+            
+            <!-- Brand Logo & Header -->
+            <div class="login-header text-center">
+                <div class="brand-logo-container mb-3">
+                    <img src="~/image/logo_hoanggia.png" alt="Hoàng Gia E-Coffee" class="login-brand-logo" />
+                </div>
+                <h1 class="brand-title">HOÀNG GIA</h1>
+                <div class="brand-subtitle">E-COFFEE MANAGEMENT</div>
+                <p class="login-tagline">Đăng nhập tài khoản quản trị hệ thống</p>
+            </div>
+
+            <!-- Context Alerts -->
+            @if (isLoggedOut)
+            {
+                <div class="login-alert login-alert-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>Đã đăng xuất tài khoản thành công!</span>
+                </div>
+            }
+            else if (hasReturnUrl)
+            {
+                <div class="login-alert login-alert-warning">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <span>Vui lòng đăng nhập để tiếp tục.</span>
+                </div>
+            }
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="login-alert login-alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>
+                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <div>@error.ErrorMessage</div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Login Form -->
+            <form method="post" asp-action="Login" asp-controller="Account" id="loginForm" class="login-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ReturnUrl" />
+
+                <!-- Username / Email -->
+                <div class="login-field">
+                    <label class="login-label" asp-for="Username">Tài khoản</label>
+                    <div class="login-input-box">
+                        <i class="bi bi-person login-icon"></i>
+                        <input type="text" asp-for="Username" id="loginUsername" class="login-input" placeholder="Tên đăng nhập hoặc email" autocomplete="username" autofocus required />
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="login-field">
+                    <label class="login-label" asp-for="Password">Mật khẩu</label>
+                    <div class="login-input-box">
+                        <i class="bi bi-lock login-icon"></i>
+                        <input type="password" asp-for="Password" id="loginPassword" class="login-input" placeholder="Mật khẩu" autocomplete="current-password" required />
+                        <button type="button" class="password-toggle-btn" id="togglePasswordBtn" title="Hiện / Ẩn mật khẩu" onclick="togglePasswordVisibility()">
+                            <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remember Me -->
+                <div class="login-options">
+                    <label class="remember-me-label">
+                        <input type="checkbox" asp-for="RememberMe" class="remember-me-checkbox" />
+                        <span>Ghi nhớ đăng nhập</span>
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-login" id="loginSubmitBtn">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span id="loginSubmitText">Đăng Nhập</span>
+                </button>
+            </form>
+
+            <!-- Back to Home -->
+            <div class="login-footer text-center">
+                <a href="/" class="back-link">
+                    <i class="bi bi-arrow-left"></i> Quay lại trang chủ
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Interactive Script -->
+    <script>
+        function togglePasswordVisibility() {
+            const pass = document.getElementById('loginPassword');
+            const icon = document.getElementById('togglePasswordIcon');
+            if (pass.type === 'password') {
+                pass.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                pass.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        document.getElementById('loginForm')?.addEventListener('submit', function () {
+            const btn = document.getElementById('loginSubmitBtn');
+            const text = document.getElementById('loginSubmitText');
+            btn.disabled = true;
+            btn.style.opacity = '0.85';
+            text.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang đăng nhập...';
+        });
+    </script>
+</body>
+</html>

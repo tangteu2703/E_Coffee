@@ -14,10 +14,13 @@ namespace E_Coffee.Models
         public List<ToppingOption> SelectedToppings { get; set; } = new();
         public string SpecialNote { get; set; } = string.Empty;
         public decimal UnitBasePrice { get; set; }
+        public decimal UnitCostPrice { get; set; } // Giá vốn/giá nhập tại thời điểm bán
         public int Quantity { get; set; } = 1;
 
         public decimal SingleItemPrice => UnitBasePrice + SelectedSize.ExtraPrice + System.Linq.Enumerable.Sum(SelectedToppings, t => t.Price);
+        public decimal ProfitPerUnit => SingleItemPrice - UnitCostPrice;
         public decimal SubTotal => SingleItemPrice * Quantity;
+        public decimal TotalProfit => ProfitPerUnit * Quantity;
     }
 
     public class OrderViewModel

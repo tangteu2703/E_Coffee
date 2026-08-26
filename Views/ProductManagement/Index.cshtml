@@ -1,0 +1,883 @@
+@model E_Coffee.Models.ProductManagementIndexViewModel
+@{
+    ViewData["Title"] = "Quản Lý Sản Phẩm";
+    Layout = "~/Views/Shared/_BarLayout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/product-management.css" asp-append-version="true" />
+}
+
+<div class="container-fluid px-3 px-md-4 pb-5">
+
+    <!-- ── Header ── -->
+    <div class="d-flex align-items-center justify-content-between py-2 flex-wrap gap-2" style="border-bottom:1px solid #f0f0f0; margin-bottom:.75rem;">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-shop text-danger" style="font-size:1rem;"></i>
+            <div>
+                <h1 class="fw-bold mb-0 lh-1" style="font-size:.95rem; color:#111827;">Quản Lý Sản Phẩm & Menu</h1>
+                <p class="text-muted mb-0" style="font-size:.72rem; margin-top:2px;">Cấu hình giá vốn · giá bán · lãi gộp · voucher</p>
+            </div>
+        </div>
+        <!-- KPI mini chips căn phải -->
+        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <div class="pm-kpi-chip">
+                <i class="bi bi-box-seam-fill" style="color:#dc2626;"></i>
+                <span class="pm-kpi-chip-val">@Model.Kpi.TotalProducts</span>
+                <span class="pm-kpi-chip-label">món · <b class="text-success">@Model.Kpi.ActiveProducts</b> đang bán</span>
+            </div>
+            <div class="pm-kpi-chip">
+                <i class="bi bi-graph-up-arrow" style="color:#16a34a;"></i>
+                <span class="pm-kpi-chip-val" style="color:#16a34a;">@Model.Kpi.AverageMarginPercent%</span>
+                <span class="pm-kpi-chip-label">biên lãi TB · <b>@Model.Kpi.AverageProfitPerUnit.ToString("N0")đ</b>/ly</span>
+            </div>
+            <div class="pm-kpi-chip">
+                <i class="bi bi-ticket-perforated" style="color:#d97706;"></i>
+                <span class="pm-kpi-chip-val" style="color:#d97706;">@Model.Kpi.ActiveVouchers</span>
+                <span class="pm-kpi-chip-label">voucher hiệu lực</span>
+            </div>
+            <div class="pm-kpi-chip" title="@Model.Kpi.TopMarginProductName">
+                <i class="bi bi-trophy-fill" style="color:#2563eb;"></i>
+                <span class="pm-kpi-chip-val" style="color:#2563eb;">@Model.Kpi.TopMarginPercent%</span>
+                <span class="pm-kpi-chip-label" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@Model.Kpi.TopMarginProductName</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Tab Nav ── -->
+    <div class="pm-tab-nav d-inline-flex mb-3">
+        <button class="pm-tab-btn @(Model.ActiveTab == "products" ? "active" : "")" id="tabBtn-products" onclick="switchTab('products')">
+            <i class="bi bi-box-seam"></i> Sản Phẩm & Giá Vốn
+            <span class="badge-count">@Model.Products.Count</span>
+        </button>
+        <button class="pm-tab-btn @(Model.ActiveTab == "categories" ? "active" : "")" id="tabBtn-categories" onclick="switchTab('categories')">
+            <i class="bi bi-grid-3x3-gap"></i> Danh Mục
+            <span class="badge-count">@Model.Categories.Count</span>
+        </button>
+        <button class="pm-tab-btn @(Model.ActiveTab == "toppings" ? "active" : "")" id="tabBtn-toppings" onclick="switchTab('toppings')">
+            <i class="bi bi-layers"></i> Topping
+            <span class="badge-count">@(Model.MasterToppings?.Count ?? 0)</span>
+        </button>
+        <button class="pm-tab-btn @(Model.ActiveTab == "vouchers" ? "active" : "")" id="tabBtn-vouchers" onclick="switchTab('vouchers')">
+            <i class="bi bi-ticket-perforated"></i> Voucher
+            <span class="badge-count">@Model.Vouchers.Count</span>
+        </button>
+        <button class="pm-tab-btn @(Model.ActiveTab == "history" ? "active" : "")" id="tabBtn-history" onclick="switchTab('history')">
+            <i class="bi bi-clock-history"></i> Lịch Sử Giá
+            <span class="badge-count">@Model.PriceHistories.Count</span>
+        </button>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- TAB 1: SẢN PHẨM & GIÁ VỐN                                         -->
+    <!-- ================================================================== -->
+    <div class="pm-tab-pane @(Model.ActiveTab == "products" ? "active" : "")" id="tab-products">
+
+        <!-- ── 1. LIST VIEW (Filter + Table + Pagination) ── -->
+        <div id="prodListView">
+            <!-- Filter Bar -->
+            <div class="pm-search-bar">
+                <i class="bi bi-search text-muted"></i>
+                <input type="text" id="prodSearch" class="form-control form-control-sm" placeholder="Tìm tên món..." style="max-width:220px;" oninput="filterProducts()">
+                <select id="prodCatFilter" class="form-select form-select-sm" style="max-width:180px;" onchange="filterProducts()">
+                    <option value="">Tất cả danh mục</option>
+                    @foreach (var cat in Model.Categories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </select>
+                <select id="prodStatusFilter" class="form-select form-select-sm" style="max-width:150px;" onchange="filterProducts()">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="true">Đang bán</option>
+                    <option value="false">Tạm ngưng</option>
+                </select>
+                <div class="ms-auto">
+                    <button class="btn btn-sm btn-pm-primary" onclick="openAddProductModal()">
+                        <i class="bi bi-plus-circle me-1"></i>Thêm Món Mới
+                    </button>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="pm-table-wrap">
+                <div class="pm-table-scroll">
+                    <table class="pm-table" id="productsTable">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">Ảnh</th>
+                                <th>Tên Món</th>
+                                <th>Danh Mục</th>
+                                <th class="text-end">Giá Nhập</th>
+                                <th class="text-end">Giá Bán</th>
+                                <th class="text-end">Lãi / Ly</th>
+                                <th class="text-center">Biên Lãi</th>
+                                <th class="text-center">Bán</th>
+                                <th class="text-center" style="width:150px;">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model.Products)
+                            {
+                                var marginClass = p.ProfitMarginPercent >= 60 ? "margin-high" : (p.ProfitMarginPercent >= 40 ? "margin-mid" : "margin-low");
+                                <tr data-pid="@p.Id" data-name="@p.Name.ToLower()" data-cat="@p.CategoryId" data-available="@p.IsAvailable.ToString().ToLower()" class="@(p.IsAvailable ? "" : "unavailable")">
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(p.ImageUrl))
+                                        {
+                                            <img src="@p.ImageUrl" alt="@p.Name" class="pm-prod-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                            <div class="pm-prod-img-placeholder" style="display:none;"><i class="bi bi-image"></i></div>
+                                        }
+                                        else
+                                        {
+                                            <div class="pm-prod-img-placeholder"><i class="bi bi-image"></i></div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold" style="font-size:.85rem; color:#111827;">@p.Name</div>
+                                        @if (!string.IsNullOrEmpty(p.Badge))
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger" style="font-size:.65rem;">@p.Badge</span>
+                                        }
+                                    </td>
+                                    <td style="font-size:.78rem; color:#6b7280;">@p.CategoryName</td>
+                                    <td class="text-end td-cost" data-val="@p.CostPrice" style="font-size:.82rem; color:#6b7280; font-weight:600;">
+                                        @p.CostPrice.ToString("N0")đ
+                                    </td>
+                                    <td class="text-end td-price" data-base="@p.BasePrice" data-promo="@(p.PromoPrice?.ToString() ?? "0")">
+                                        @if (p.HasPromo)
+                                        {
+                                            <span style="font-size:.72rem; color:#9ca3af; text-decoration:line-through;">@p.BasePrice.ToString("N0")đ</span><br>
+                                            <span style="font-size:.85rem; color:#dc2626; font-weight:700;">@p.PromoPrice!.Value.ToString("N0")đ</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="font-size:.85rem; font-weight:700;">@p.BasePrice.ToString("N0")đ</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <span style="font-size:.85rem; font-weight:700; color:#16a34a;">+@p.ProfitPerUnit.ToString("N0")đ</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="margin-badge @marginClass">
+                                            <i class="bi bi-percent" style="font-size:.65rem;"></i>@p.ProfitMarginPercent
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <label class="pm-toggle">
+                                            <input type="checkbox" @(p.IsAvailable ? "checked" : "") onchange="toggleProductStatus(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))', @p.IsAvailable.ToString().ToLower())">
+                                            <span class="pm-slider"></span>
+                                        </label>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="pm-action-btn history" title="Cập nhật giá nhanh" onclick="showQuickPriceEdit(@p.Id)"><i class="bi bi-lightning-charge-fill"></i></button>
+                                        <button class="pm-action-btn edit" title="Chỉnh sửa" onclick="openEditProductModal(@p.Id)"><i class="bi bi-pencil-fill"></i></button>
+                                        <button class="pm-action-btn delete" title="Xóa" onclick="deleteProduct(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))')"><i class="bi bi-trash3-fill"></i></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination footer -->
+                <div class="pm-pagination" id="prodPagination">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="pm-pagination-info" id="prodPageInfo"></span>
+                        <select class="pm-page-size-select" id="prodPageSize" onchange="changePageSize()">
+                            <option value="10">10 hàng</option>
+                            <option value="20">20 hàng</option>
+                            <option value="50">50 hàng</option>
+                            <option value="0">Tất cả</option>
+                        </select>
+                    </div>
+                    <div class="pm-pagination-btns" id="prodPageBtns"></div>
+                </div>
+            </div>
+        </div><!-- /#prodListView -->
+
+        <!-- ── 2. FORM VIEW (Thêm / Chỉnh Sửa Sản Phẩm) ── -->
+        <div id="prodFormView" style="display:none;">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="border:1px solid #e5e7eb !important;">
+                <!-- Header -->
+                <div class="card-header bg-white py-3 px-4 d-flex align-items-center justify-content-between border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="closeProductForm()">
+                            <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+                        </button>
+                        <div class="vr mx-2" style="height:22px;"></div>
+                        <h5 class="fw-bold mb-0 text-dark" id="prodFormTitle">
+                            <i class="bi bi-box-seam text-danger me-2"></i>Thêm Sản Phẩm Mới
+                        </h5>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-secondary px-3" onclick="closeProductForm()">Hủy</button>
+                        <button type="button" class="btn btn-sm btn-pm-primary px-3" onclick="saveProduct()">
+                            <i class="bi bi-check-circle me-1"></i>Lưu Sản Phẩm
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body p-4 bg-white">
+                    <input type="hidden" id="prodId" value="0">
+                    <div class="row g-4">
+                        <!-- Left Panel: Image & Status -->
+                        <div class="col-lg-4 col-xl-3">
+                            <div class="p-3 rounded-3 border bg-light d-flex flex-column align-items-center gap-2">
+                                <!-- Image Preview Box (Clickable to upload) -->
+                                <div id="prodImgPreviewWrap" style="width:100%; height:200px; border-radius:12px; overflow:hidden;
+                                     background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px dashed #cbd5e1; cursor:pointer; position:relative;"
+                                     onclick="document.getElementById('prodImageFileInput').click()" title="Nhấn để chọn ảnh từ máy tính">
+                                    <img id="prodImgPreview" src="" alt="Preview"
+                                         style="width:100%; height:100%; object-fit:cover; display:none;">
+                                    <div id="prodImgPlaceholder" class="text-center text-muted p-2" style="font-size:.78rem;">
+                                        <i class="bi bi-cloud-arrow-up-fill text-danger" style="font-size:2.4rem; display:block; margin-bottom:.3rem;"></i>
+                                        <span class="fw-bold text-dark d-block">Chọn ảnh từ máy tính</span>
+                                        <span class="text-muted small" style="font-size:.7rem;">hoặc click vào đây để tải lên</span>
+                                    </div>
+                                    <div id="prodImgLoading" class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 flex-column align-items-center justify-content-center d-none">
+                                        <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+                                        <span class="small fw-bold text-danger mt-1" style="font-size:.72rem;">Đang tải ảnh lên...</span>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden File Input -->
+                                <input type="file" id="prodImageFileInput" accept="image/*" style="display:none;" onchange="uploadProductImage(this)">
+
+                                <!-- Upload Button -->
+                                <button type="button" class="btn btn-sm btn-outline-danger w-100 py-1.5 fw-semibold d-flex align-items-center justify-content-center gap-1.5 shadow-xs" onclick="document.getElementById('prodImageFileInput').click()">
+                                    <i class="bi bi-upload"></i>Chọn ảnh từ thiết bị
+                                </button>
+
+                                <div class="w-100 d-flex align-items-center gap-2 my-0 text-muted" style="font-size:.68rem;">
+                                    <span class="border-top flex-grow-1"></span>hoặc dán URL<span class="border-top flex-grow-1"></span>
+                                </div>
+
+                                <div class="w-100">
+                                    <input type="text" class="form-control form-control-sm" id="prodImageUrl"
+                                           placeholder="/image/... hoặc https://..."
+                                           oninput="updateProdImagePreview(this.value)">
+                                </div>
+
+                                <div class="w-100">
+                                    <label class="form-label fw-bold small mb-1">Badge / Nhãn</label>
+                                    <select class="form-select form-select-sm" id="prodBadge">
+                                        <option value="">Không có nhãn</option>
+                                        <option>Bán Chạy</option><option>Mới</option><option>Hot</option>
+                                        <option>Signature</option><option>Must Try</option><option>Best Seller</option>
+                                        <option>Hot Trend</option><option>Yêu Thích</option><option>Thanh Mát</option>
+                                    </select>
+                                </div>
+
+                                <div class="w-100 pt-1">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="prodIsAvailable" checked>
+                                        <label class="form-check-label fw-bold small" for="prodIsAvailable">Đang kinh doanh</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Information, Price, Profit, Toppings -->
+                        <div class="col-lg-8 col-xl-9">
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold small">Tên Món <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="prodName" placeholder="VD: Phin Sữa Đá Hoàng Gia">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold small">Danh Mục <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="prodCategoryId">
+                                        @foreach (var cat in Model.Categories)
+                                        {
+                                            <option value="@cat.Id">@cat.Name</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="col-sm-4">
+                                    <label class="form-label fw-bold small">Giá Vốn (Cost Price) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="prodCostPrice" placeholder="0" step="500" min="0"
+                                               oninput="recalcProfit()">
+                                        <span class="input-group-text small">đ</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size:.7rem;">Chi phí nguyên vật liệu</small>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label fw-bold small">Giá Bán Niêm Yết <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="prodBasePrice" placeholder="0" step="1000" min="0"
+                                               oninput="recalcProfit()">
+                                        <span class="input-group-text small">đ</span>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label fw-bold small">Giá Khuyến Mãi</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="prodPromoPrice" placeholder="–" step="1000" min="0"
+                                               oninput="recalcProfit()">
+                                        <span class="input-group-text small">đ</span>
+                                    </div>
+                                </div>
+
+                                <!-- Profit Calculator Widget -->
+                                <div class="col-12">
+                                    <div class="profit-calc py-2.5 px-3 rounded-3 border">
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                            <div class="fw-bold small" style="color:#92400e;">
+                                                <i class="bi bi-calculator me-1"></i>Tính toán lợi nhuận &amp; biên lãi realtime:
+                                            </div>
+                                            <div class="d-flex align-items-center gap-4 flex-wrap small">
+                                                <span>Giá bán hiệu quả: <b class="text-dark" id="calcSellVal">–</b></span>
+                                                <span>Lãi gộp: <b class="text-success fw-bold" id="calcProfitVal">–</b></span>
+                                                <span class="margin-pill" id="calcMarginPill"><span id="calcMarginVal">–</span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Topping Checklist for Product -->
+                                <div class="col-12">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <label class="form-label fw-bold small mb-0">
+                                            <i class="bi bi-layers me-1 text-danger"></i>Topping hỗ trợ cho món này:
+                                        </label>
+                                        <span class="badge rounded-pill bg-light text-secondary border small" id="prodToppingCountBadge">
+                                            Đã chọn: <b id="prodToppingCountNum">0</b> topping
+                                        </span>
+                                    </div>
+                                    <div class="p-2.5 border rounded-3 bg-light-subtle" style="max-height:160px; overflow-y:auto;">
+                                        <div class="row g-2" id="prodToppingList">
+                                            @if (Model.MasterToppings != null && Model.MasterToppings.Any())
+                                            {
+                                                @foreach (var t in Model.MasterToppings)
+                                                {
+                                                    <div class="col-sm-6 col-md-4 col-xl-3">
+                                                        <label class="prod-topping-item d-flex align-items-center gap-2 p-1.5 rounded border bg-white cursor-pointer w-100"
+                                                               style="font-size:.78rem; cursor:pointer;">
+                                                            <input type="checkbox" class="prod-topping-chk form-check-input flex-shrink-0 my-0"
+                                                                   value="@t.Id" id="topping_@t.Id"
+                                                                   onchange="updateToppingBadge()">
+                                                            <span class="text-truncate fw-semibold">@t.Name</span>
+                                                            <span class="text-muted ms-auto small">+@t.Price.ToString("N0")đ</span>
+                                                        </label>
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <div class="col-12 text-center text-muted py-2 small">
+                                                    Chưa có topping nào. Bạn có thể thêm topping ở tab Topping.
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Mô Tả Món Nước</label>
+                                    <textarea class="form-control" id="prodDescription" rows="2" placeholder="Mô tả ngắn về hương vị, cách thưởng thức, nguyên liệu đặc trưng..."></textarea>
+                                </div>
+
+                                <div class="col-12" id="prodChangeReasonRow" style="display:none;">
+                                    <label class="form-label fw-bold small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Lý do thay đổi giá (sẽ được ghi nhận vào lịch sử giá)</label>
+                                    <input type="text" class="form-control border-warning" id="prodChangeReason" placeholder="VD: Giá nguyên liệu tăng, Điều chỉnh định kỳ Q3...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <form id="productForm" style="display:none;"></form>
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer bg-light py-3 px-4 d-flex justify-content-end gap-2 border-top">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" onclick="closeProductForm()">Hủy / Quay lại</button>
+                    <button type="button" class="btn btn-sm btn-pm-primary px-4" onclick="saveProduct()">
+                        <i class="bi bi-check-circle me-1"></i>Lưu Sản Phẩm
+                    </button>
+                </div>
+            </div>
+        </div><!-- /#prodFormView -->
+
+    </div><!-- /tab-products -->
+
+    <!-- ================================================================== -->
+    <!-- TAB 2: DANH MỤC                                                     -->
+    <!-- ================================================================== -->
+    <div class="pm-tab-pane @(Model.ActiveTab == "categories" ? "active" : "")" id="tab-categories">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0" style="color:#111827;"><i class="bi bi-grid-3x3-gap me-1 text-danger"></i>Danh Mục Sản Phẩm</h6>
+            <button class="btn btn-sm btn-pm-primary" onclick="openAddCategoryModal()">
+                <i class="bi bi-plus-circle me-1"></i>Thêm Danh Mục
+            </button>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var cat in Model.Categories)
+            {
+                var count = Model.CategoryProductCount.TryGetValue(cat.Id, out int cnt) ? cnt : 0;
+                <div class="col-sm-6 col-md-4 col-lg-3">
+                    <div class="cat-card">
+                        <div class="cat-actions">
+                            <button class="pm-action-btn edit" title="Sửa" onclick="openEditCategoryModal(@cat.Id)"><i class="bi bi-pencil-fill"></i></button>
+                            <button class="pm-action-btn delete" title="Xóa" onclick="deleteCategory(@cat.Id, '@Html.Raw(cat.Name.Replace("'", "\\'"))')"><i class="bi bi-trash3-fill"></i></button>
+                        </div>
+                        <div class="cat-icon-box"><i class="bi @cat.Icon"></i></div>
+                        <div class="cat-name">@cat.Name</div>
+                        <div class="cat-desc">@cat.Description</div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="cat-count"><i class="bi bi-box-seam me-1"></i>@count món</span>
+                            <span style="font-size:.7rem; color:#9ca3af;">Thứ tự: @cat.DisplayOrder</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div><!-- /tab-categories -->
+
+    <!-- ================================================================== -->
+    <!-- TAB 3: TOPPING & PHỤ THU                                           -->
+    <!-- ================================================================== -->
+    <div class="pm-tab-pane @(Model.ActiveTab == "toppings" ? "active" : "")" id="tab-toppings">
+
+        <!-- Search & Action Bar -->
+        <div class="pm-search-bar">
+            <i class="bi bi-search text-muted"></i>
+            <input type="text" id="toppingSearch" class="form-control form-control-sm" placeholder="Tìm kiếm tên topping..." style="max-width:240px;" oninput="filterToppings()">
+            <span class="text-muted small ms-2 d-none d-md-inline">Tổng số: <b>@(Model.MasterToppings?.Count ?? 0)</b> loại topping</span>
+            <div class="ms-auto">
+                <button class="btn btn-sm btn-pm-primary" onclick="openAddToppingModal()">
+                    <i class="bi bi-plus-circle me-1"></i>Thêm Topping Mới
+                </button>
+            </div>
+        </div>
+
+        <!-- Toppings Cards Grid -->
+        <div class="row g-3" id="toppingsGrid">
+            @if (Model.MasterToppings != null && Model.MasterToppings.Any())
+            {
+                foreach (var t in Model.MasterToppings)
+                {
+                    var linkedCount = Model.Products.Count(p => p.AvailableToppings != null && p.AvailableToppings.Any(top => top.Id == t.Id));
+                    <div class="col-6 col-sm-4 col-md-3 col-xl-2 topping-card-col" data-tid="@t.Id" data-name="@t.Name.ToLower()">
+                        <div class="topping-card">
+                            <div class="tp-actions">
+                                <button class="pm-action-btn edit" title="Chỉnh sửa" onclick="openEditToppingModal(@t.Id)">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                                <button class="pm-action-btn delete" title="Xóa" onclick="deleteTopping(@t.Id, '@Html.Raw(t.Name.Replace("'", "\\'"))')">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <div class="tp-icon-box">
+                                    <i class="bi bi-layers-half"></i>
+                                </div>
+                                <div class="overflow-hidden pe-3">
+                                    <div class="tp-name text-truncate" title="@t.Name">@t.Name</div>
+                                    <div class="text-muted" style="font-size:.68rem;">#@t.Id</div>
+                                </div>
+                            </div>
+                            <div class="mt-auto pt-2 border-top d-flex align-items-center justify-content-between">
+                                <div class="tp-price">+@t.Price.ToString("N0")đ</div>
+                                @if (linkedCount > 0)
+                                {
+                                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size:.65rem;" title="Áp dụng cho @linkedCount món">
+                                        @linkedCount món
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge rounded-pill bg-light text-muted border px-1.5 py-0.5" style="font-size:.65rem;">
+                                        0 món
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12 text-center text-muted py-5">
+                    <i class="bi bi-layers" style="font-size:2.5rem; display:block; margin-bottom:.5rem; color:#cbd5e1;"></i>
+                    Chưa có topping nào được tạo.<br>
+                    <button class="btn btn-sm btn-pm-primary mt-3" onclick="openAddToppingModal()">
+                        <i class="bi bi-plus-circle me-1"></i>Thêm topping đầu tiên
+                    </button>
+                </div>
+            }
+        </div>
+    </div><!-- /tab-toppings -->
+
+    <!-- ================================================================== -->
+    <!-- TAB 4: VOUCHER & HIỆU LỰC                                          -->
+    <!-- ================================================================== -->
+    <div class="pm-tab-pane @(Model.ActiveTab == "vouchers" ? "active" : "")" id="tab-vouchers">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0" style="color:#111827;"><i class="bi bi-ticket-perforated me-1 text-danger"></i>Voucher Khuyến Mãi</h6>
+            <button class="btn btn-sm btn-pm-primary" onclick="openAddVoucherModal()">
+                <i class="bi bi-plus-circle me-1"></i>Thêm Voucher
+            </button>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var v in Model.Vouchers)
+            {
+                var usagePct = v.UsageLimit.HasValue && v.UsageLimit > 0 ? Math.Min(100, (int)(v.UsedCount * 100.0 / v.UsageLimit.Value)) : 0;
+                <div class="col-sm-6 col-lg-3">
+                    <div class="voucher-card" style="opacity:@(v.IsActive ? "1" : ".7")">
+                        <div class="voucher-head">
+                            <div class="voucher-scissor"></div>
+                            <div class="voucher-scissor-r"></div>
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div>
+                                    <div class="voucher-code">@v.Code</div>
+                                    <div class="voucher-name">@v.Name</div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <span class="status-badge @(v.IsCurrentlyValid ? "status-active" : "status-inactive")">@v.StatusText</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="voucher-body">
+                            <div class="voucher-discount">
+                                @if (v.DiscountType == E_Coffee.Models.VoucherDiscountType.Percent)
+                                {
+                                    <span>-@v.DiscountValue.ToString("N0")%</span>
+                                }
+                                else
+                                {
+                                    <span>-@v.DiscountValue.ToString("N0")đ</span>
+                                }
+                            </div>
+                            <div class="voucher-meta">
+                                @if (v.MinOrderAmount > 0) { <div><i class="bi bi-receipt me-1"></i>Đơn tối thiểu: <b>@v.MinOrderAmount.ToString("N0")đ</b></div> }
+                                @if (v.MaxDiscountAmount.HasValue) { <div><i class="bi bi-arrow-down-circle me-1"></i>Giảm tối đa: <b>@v.MaxDiscountAmount.Value.ToString("N0")đ</b></div> }
+                                @if (v.StartDate.HasValue || v.EndDate.HasValue)
+                                {
+                                    <div><i class="bi bi-calendar-range me-1"></i>
+                                        @(v.StartDate.HasValue ? v.StartDate.Value.ToString("dd/MM/yyyy") : "–")
+                                        → @(v.EndDate.HasValue ? v.EndDate.Value.ToString("dd/MM/yyyy") : "Không giới hạn")
+                                    </div>
+                                }
+                            </div>
+                            @if (v.UsageLimit.HasValue)
+                            {
+                                <div class="mt-2">
+                                    <div class="d-flex justify-content-between" style="font-size:.7rem; color:#6b7280; margin-bottom:.2rem;">
+                                        <span>Đã dùng: <b>@v.UsedCount</b> / @v.UsageLimit lượt</span>
+                                        <span>@usagePct%</span>
+                                    </div>
+                                    <div class="usage-bar">
+                                        <div class="usage-bar-fill" style="width:@usagePct%; background:@(usagePct >= 90 ? "linear-gradient(90deg,#dc2626,#ef4444)" : "linear-gradient(90deg,#16a34a,#22c55e)")"></div>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="font-size:.7rem; color:#6b7280; margin-top:.4rem;"><i class="bi bi-infinity me-1"></i>Không giới hạn lượt · Đã dùng: @v.UsedCount</div>
+                            }
+                        </div>
+                        <div class="voucher-validity d-flex align-items-center justify-content-between">
+                            <span style="color:#6b7280; font-size:.72rem;">@v.Description</span>
+                            <div class="d-flex gap-1">
+                                <button class="pm-action-btn toggle" title="@(v.IsActive ? "Tạm ngưng" : "Kích hoạt")" onclick="toggleVoucherStatus(@v.Id)">
+                                    <i class="bi @(v.IsActive ? "bi-pause-fill" : "bi-play-fill")"></i>
+                                </button>
+                                <button class="pm-action-btn edit" title="Chỉnh sửa" onclick="openEditVoucherModal(@v.Id)"><i class="bi bi-pencil-fill"></i></button>
+                                <button class="pm-action-btn delete" title="Xóa" onclick="deleteVoucher(@v.Id, '@v.Code')"><i class="bi bi-trash3-fill"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div><!-- /tab-vouchers -->
+
+    <!-- ================================================================== -->
+    <!-- TAB 4: LỊCH SỬ THAY ĐỔI GIÁ                                       -->
+    <!-- ================================================================== -->
+    <div class="pm-tab-pane @(Model.ActiveTab == "history" ? "active" : "")" id="tab-history">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0" style="color:#111827;"><i class="bi bi-clock-history me-1 text-danger"></i>Lịch Sử Điều Chỉnh Giá Vốn & Giá Bán</h6>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-9">
+                @if (!Model.PriceHistories.Any())
+                {
+                    <div class="text-center text-muted py-5"><i class="bi bi-inbox" style="font-size:2rem;"></i><br>Chưa có lịch sử thay đổi giá nào</div>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var h in Model.PriceHistories)
+                        {
+                            var costDiff = h.NewCostPrice - h.OldCostPrice;
+                            var priceDiff = h.NewBasePrice - h.OldBasePrice;
+                            <div class="col-12 col-md-6 col-xl-4">
+                                <div class="price-history-card">
+                                    <div class="d-flex align-items-center justify-content-between pb-2 border-bottom">
+                                        <div class="ph-product text-truncate fw-bold mb-0" title="@h.ProductName" style="font-size:.85rem; color:#111827;">
+                                            <i class="bi bi-lightning-charge-fill text-warning me-1"></i>@h.ProductName
+                                        </div>
+                                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size:.65rem;">
+                                            @h.MarginAfterChange%
+                                        </span>
+                                    </div>
+
+                                    <div class="ph-card-body mt-2 flex-grow-1" style="font-size:.78rem;">
+                                        <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                            <span class="text-muted">Giá vốn:</span>
+                                            <div class="text-end font-monospace">
+                                                <span class="text-muted small">@h.OldCostPrice.ToString("N0")đ</span>
+                                                <span class="ph-arrow text-muted mx-0.5" style="font-size:.7rem;">→</span>
+                                                <b class="text-dark">@h.NewCostPrice.ToString("N0")đ</b>
+                                                @if (costDiff != 0)
+                                                {
+                                                    <span style="color:@(costDiff > 0 ? "#dc2626" : "#16a34a"); font-weight:700; font-size:.68rem;">
+                                                        (@(costDiff > 0 ? "+" : "")@costDiff.ToString("N0")đ)
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                            <span class="text-muted">Giá bán:</span>
+                                            <div class="text-end font-monospace">
+                                                <span class="text-muted small">@h.OldBasePrice.ToString("N0")đ</span>
+                                                <span class="ph-arrow text-muted mx-0.5" style="font-size:.7rem;">→</span>
+                                                <b class="text-dark">@h.NewBasePrice.ToString("N0")đ</b>
+                                                @if (priceDiff != 0)
+                                                {
+                                                    <span style="color:@(priceDiff > 0 ? "#16a34a" : "#dc2626"); font-weight:700; font-size:.68rem;">
+                                                        (@(priceDiff > 0 ? "+" : "")@priceDiff.ToString("N0")đ)
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        @if (h.OldPromoPrice.HasValue || h.NewPromoPrice.HasValue)
+                                        {
+                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                                <span class="text-muted">Giá KM:</span>
+                                                <div class="text-end font-monospace">
+                                                    <span class="text-muted small">@(h.OldPromoPrice?.ToString("N0") ?? "–")đ</span>
+                                                    <span class="ph-arrow text-muted mx-0.5" style="font-size:.7rem;">→</span>
+                                                    <b class="text-danger">@(h.NewPromoPrice?.ToString("N0") ?? "–")đ</b>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                            <span class="text-muted">Lãi / ly:</span>
+                                            <b class="text-success font-monospace">+@h.ProfitAfterChange.ToString("N0")đ</b>
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(h.Reason))
+                                        {
+                                            <div class="text-muted mt-2 p-1.5 rounded bg-light border text-truncate" title="@h.Reason" style="font-size:.72rem;">
+                                                <i class="bi bi-chat-left-text me-1 text-secondary"></i>@h.Reason
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="ph-card-footer mt-2 pt-2 border-top d-flex align-items-center justify-content-between text-muted" style="font-size:.68rem;">
+                                        <span class="text-truncate" style="max-width:90px;" title="@h.ChangedBy"><i class="bi bi-person me-1"></i>@h.ChangedBy</span>
+                                        <span><i class="bi bi-clock me-1"></i>@h.ChangedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="col-lg-3">
+                <div class="pm-kpi-card h-100" style="background:linear-gradient(135deg,#fffbeb,#fef9c3);">
+                    <div class="fw-bold mb-3" style="color:#92400e;"><i class="bi bi-info-circle me-1"></i>Tại sao cần lưu lịch sử giá?</div>
+                    <ul style="font-size:.82rem; color:#78350f; padding-left:1.2rem; line-height:2;">
+                        <li>Giá nguyên liệu thay đổi theo thị trường</li>
+                        <li>Mỗi đơn hàng đã bán lưu <b>giá vốn tại thời điểm bán</b></li>
+                        <li>Analytics tính lãi lỗ chính xác theo lịch sử</li>
+                        <li>Quản lý biết khi nào cần điều chỉnh giá bán</li>
+                    </ul>
+                    <div class="mt-3 p-2 rounded-2" style="background:#fef3c7; font-size:.75rem; color:#92400e;">
+                        <i class="bi bi-lightbulb-fill me-1"></i>
+                        <b>Tip:</b> Nhấn <b>⚡ Cập nhật giá nhanh</b> ở bảng sản phẩm để thay đổi giá và hệ thống tự động ghi lịch sử.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /tab-history -->
+
+</div>
+
+
+
+<!-- ================================================================== -->
+<!-- MODAL: THÊM / SỬA DANH MỤC                                          -->
+<!-- ================================================================== -->
+<div class="modal fade pm-modal" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="categoryModalTitle">Thêm Danh Mục</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="catId">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold small">Tên Danh Mục <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="catName" placeholder="VD: Cà Phê Phin">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Thứ Tự Hiển Thị</label>
+                        <input type="number" class="form-control" id="catDisplayOrder" min="1" value="1">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Icon (Bootstrap Icons)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-cup-hot-fill" id="catIconPreview"></i></span>
+                            <input type="text" class="form-control" id="catIcon" value="bi-cup-hot-fill" placeholder="bi-cup-hot-fill"
+                                   oninput="document.getElementById('catIconPreview').className='bi '+this.value">
+                        </div>
+                        <small class="text-muted" style="font-size:.7rem;"><a href="https://icons.getbootstrap.com" target="_blank">Xem danh sách icon</a></small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Slug (URL)</label>
+                        <input type="text" class="form-control" id="catSlug" placeholder="ca-phe-phin">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Mô Tả</label>
+                        <input type="text" class="form-control" id="catDescription" placeholder="Mô tả ngắn về danh mục...">
+                    </div>
+                </div>
+                <form id="categoryForm" style="display:none;"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-pm-primary" onclick="saveCategory()"><i class="bi bi-check-circle me-1"></i>Lưu Danh Mục</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: THÊM / SỬA TOPPING                                          -->
+<!-- ================================================================== -->
+<div class="modal fade pm-modal" id="toppingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-layers fs-5"></i>
+                    <h5 class="modal-title fw-bold mb-0" id="toppingModalTitle">Thêm Topping Mới</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4">
+                <input type="hidden" id="toppingId">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Tên Topping <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="toppingName" placeholder="VD: Thạch Cà Phê, Kem Phô Mai Cheese...">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Giá Bán / Phụ Thu (VNĐ) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="toppingPrice" placeholder="10000" min="0" step="1000">
+                            <span class="input-group-text small">đ</span>
+                        </div>
+                        <small class="text-muted" style="font-size:.72rem;">Số tiền cộng thêm khi khách hàng chọn topping này</small>
+                    </div>
+                </div>
+                <form id="toppingForm" style="display:none;"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-pm-primary" onclick="saveTopping()"><i class="bi bi-check-circle me-1"></i>Lưu Topping</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: THÊM / SỬA VOUCHER                                           -->
+<!-- ================================================================== -->
+<div class="modal fade pm-modal" id="voucherModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="voucherModalTitle">Thêm Voucher Mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="voucherId">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold small">Mã Voucher <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace fw-bold" id="vCode" placeholder="ECOFFEE10" style="text-transform:uppercase;">
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label fw-bold small">Tên Chương Trình</label>
+                        <input type="text" class="form-control" id="vName" placeholder="VD: Ưu đãi tri ân khách hàng">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Loại Giảm Giá</label>
+                        <select class="form-select" id="vDiscountType" onchange="toggleDiscountTypeUI()">
+                            <option value="1">Giảm theo % (%)</option>
+                            <option value="2">Giảm số tiền cố định (đ)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Giá Trị Giảm <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="vDiscountValue" placeholder="10" min="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Đơn Tối Thiểu</label>
+                        <input type="number" class="form-control" id="vMinOrder" placeholder="0" min="0">
+                    </div>
+                    <div class="col-md-6" id="maxDiscountRow">
+                        <label class="form-label fw-bold small">Giảm Tối Đa (đ)</label>
+                        <input type="number" class="form-control" id="vMaxDiscount" placeholder="Không giới hạn">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Giới Hạn Lượt Dùng</label>
+                        <input type="number" class="form-control" id="vUsageLimit" placeholder="Không giới hạn" min="1">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small"><i class="bi bi-calendar-check me-1 text-success"></i>Ngày Bắt Đầu</label>
+                        <input type="date" class="form-control" id="vStartDate">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small"><i class="bi bi-calendar-x me-1 text-danger"></i>Ngày Hết Hạn</label>
+                        <input type="date" class="form-control" id="vEndDate">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Mô Tả</label>
+                        <input type="text" class="form-control" id="vDescription" placeholder="Mô tả ngắn về chương trình...">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="vIsActive" checked>
+                            <label class="form-check-label fw-bold small" for="vIsActive">Kích hoạt ngay</label>
+                        </div>
+                    </div>
+                </div>
+                <form id="voucherForm" style="display:none;"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-pm-primary" onclick="saveVoucher()"><i class="bi bi-check-circle me-1"></i>Lưu Voucher</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/product-management.js" asp-append-version="true"></script>
+}

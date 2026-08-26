@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using E_Coffee.Models;
 using E_Coffee.Repositories;
 
@@ -16,19 +17,22 @@ namespace E_Coffee.Services
         private readonly IVoucherRepository _voucherRepo;
         private readonly ITableRepository _tableRepo;
         private readonly IOrderRepository _orderRepo;
+        private readonly Data.MockDbContext _context;
 
         public CoffeeCatalogService(
             ICategoryRepository categoryRepo,
             IProductRepository productRepo,
             IVoucherRepository voucherRepo,
             ITableRepository tableRepo,
-            IOrderRepository orderRepo)
+            IOrderRepository orderRepo,
+            Data.MockDbContext context)
         {
             _categoryRepo = categoryRepo;
             _productRepo = productRepo;
             _voucherRepo = voucherRepo;
             _tableRepo = tableRepo;
             _orderRepo = orderRepo;
+            _context = context;
         }
 
         public List<Category> GetCategories()
@@ -357,6 +361,255 @@ namespace E_Coffee.Services
             }
 
             return new CustomerLookupResult { Found = false, CustomerPhone = phone };
+        }
+
+        // =====================================================================
+        // PRODUCT MANAGEMENT METHODS
+        // =====================================================================
+
+        public ProductManagementIndexViewModel GetProductManagementViewModel()
+        {
+            var products = _productRepo.GetAllForManagement();
+            var categories = _categoryRepo.GetAll();
+            var vouchers = _voucherRepo.GetAll(includeInactive: true);
+            var toppings = _productRepo.GetToppings();
+            var sizes = _productRepo.GetSizes();
+
+            var catCountDict = categories.ToDictionary(c => c.Id, c => products.Count(p => p.CategoryId == c.Id));
+
+            var activeProds = products.Where(p => p.IsAvailable).ToList();
+            var kpi = new ProductManagementKpiSummary
+            {
+                TotalProducts = products.Count,
+                ActiveProducts = products.Count(p => p.IsAvailable),
+                InactiveProducts = products.Count(p => !p.IsAvailable),
+                TotalCategories = categories.Count,
+                TotalToppings = toppings.Count,
+                TotalVouchers = vouchers.Count,
+                ActiveVouchers = vouchers.Count(v => v.IsCurrentlyValid),
+                AverageCostPrice = activeProds.Any() ? System.Math.Round(activeProds.Average(p => p.CostPrice), 0) : 0,
+                AverageSellingPrice = activeProds.Any() ? System.Math.Round(activeProds.Average(p => p.EffectivePrice), 0) : 0,
+                AverageProfitPerUnit = activeProds.Any() ? System.Math.Round(activeProds.Average(p => p.ProfitPerUnit), 0) : 0,
+                AverageMarginPercent = activeProds.Any() ? System.Math.Round(activeProds.Average(p => p.ProfitMarginPercent), 1) : 0,
+                TopMarginProductName = activeProds.Any() ? activeProds.OrderByDescending(p => p.ProfitMarginPercent).First().Name : "",
+                TopMarginPercent = activeProds.Any() ? activeProds.Max(p => p.ProfitMarginPercent) : 0,
+                LowestCostProductName = activeProds.Any() ? activeProds.OrderBy(p => p.CostPrice).First().Name : "",
+                LowestCostPrice = activeProds.Any() ? activeProds.Min(p => p.CostPrice) : 0,
+            };
+
+            return new ProductManagementIndexViewModel
+            {
+                Products = products,
+                Categories = categories,
+                Vouchers = vouchers,
+                PriceHistories = GetPriceHistories(),
+                MasterToppings = toppings,
+                MasterSizes = sizes,
+                Kpi = kpi,
+                CategoryProductCount = catCountDict
+            };
+        }
+
+        // --- Category CRUD ---
+        public void SaveCategory(CategorySaveDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Slug))
+                dto.Slug = dto.Name.ToLower().Replace(" ", "-");
+
+            if (dto.Id == 0)
+            {
+                _categoryRepo.Add(new Category
+                {
+                    Name = dto.Name, Icon = dto.Icon, Slug = dto.Slug,
+                    DisplayOrder = dto.DisplayOrder, Description = dto.Description
+                });
+            }
+            else
+            {
+                _categoryRepo.Update(new Category
+                {
+                    Id = dto.Id, Name = dto.Name, Icon = dto.Icon, Slug = dto.Slug,
+                    DisplayOrder = dto.DisplayOrder, Description = dto.Description
+                });
+            }
+        }
+        public void DeleteCategory(int id) => _categoryRepo.Delete(id);
+
+        // --- Topping CRUD ---
+        public ToppingOption? GetToppingById(int id) => _productRepo.GetToppingById(id);
+
+        public void SaveTopping(ToppingSaveDto dto)
+        {
+            if (dto.Id == 0)
+            {
+                _productRepo.AddTopping(new ToppingOption
+                {
+                    Name = dto.Name,
+                    Price = dto.Price
+                });
+            }
+            else
+            {
+                _productRepo.UpdateTopping(new ToppingOption
+                {
+                    Id = dto.Id,
+                    Name = dto.Name,
+                    Price = dto.Price
+                });
+            }
+        }
+
+        public void DeleteTopping(int id) => _productRepo.DeleteTopping(id);
+
+        // --- Product CRUD + Price History ---
+        public void SaveProduct(ProductSaveDto dto)
+        {
+            var category = _categoryRepo.GetById(dto.CategoryId);
+            var allSizes = _productRepo.GetSizes();
+            var allToppings = _productRepo.GetToppings();
+
+            var sizes = dto.SelectedSizeCodes != null && dto.SelectedSizeCodes.Any()
+                ? allSizes.Where(s => dto.SelectedSizeCodes.Contains(s.Code)).ToList()
+                : allSizes;
+            var toppings = dto.SelectedToppingIds != null && dto.SelectedToppingIds.Any()
+                ? allToppings.Where(t => dto.SelectedToppingIds.Contains(t.Id)).ToList()
+                : new System.Collections.Generic.List<ToppingOption>();
+
+            if (dto.Id == 0)
+            {
+                _productRepo.Add(new Product
+                {
+                    Name = dto.Name, CategoryId = dto.CategoryId,
+                    CategoryName = category?.Name ?? "",
+                    Description = dto.Description, BasePrice = dto.BasePrice,
+                    PromoPrice = dto.PromoPrice, CostPrice = dto.CostPrice,
+                    ImageUrl = dto.ImageUrl, Badge = dto.Badge,
+                    IsAvailable = dto.IsAvailable,
+                    AvailableSizes = sizes, AvailableToppings = toppings
+                });
+            }
+            else
+            {
+                var existing = _productRepo.GetById(dto.Id);
+                if (existing != null)
+                {
+                    // Nếu có thay đổi giá, ghi lịch sử trước khi update
+                    if (existing.BasePrice != dto.BasePrice || existing.CostPrice != dto.CostPrice || existing.PromoPrice != dto.PromoPrice)
+                    {
+                        _priceHistoryStore.Add(new ProductPriceHistory
+                        {
+                            Id = _priceHistoryStore.Any() ? _priceHistoryStore.Max(h => h.Id) + 1 : 1,
+                            ProductId = existing.Id, ProductName = existing.Name,
+                            OldCostPrice = existing.CostPrice, NewCostPrice = dto.CostPrice,
+                            OldBasePrice = existing.BasePrice, NewBasePrice = dto.BasePrice,
+                            OldPromoPrice = existing.PromoPrice, NewPromoPrice = dto.PromoPrice,
+                            ChangedAt = DateTime.Now,
+                            Reason = dto.ChangeReason ?? "Cập nhật từ trang quản lý"
+                        });
+                    }
+
+                    _productRepo.Update(new Product
+                    {
+                        Id = dto.Id, Name = dto.Name, CategoryId = dto.CategoryId,
+                        CategoryName = category?.Name ?? "",
+                        Description = dto.Description, BasePrice = dto.BasePrice,
+                        PromoPrice = dto.PromoPrice, CostPrice = dto.CostPrice,
+                        ImageUrl = dto.ImageUrl, Badge = dto.Badge,
+                        IsAvailable = dto.IsAvailable,
+                        AvailableSizes = sizes, AvailableToppings = toppings
+                    });
+                }
+            }
+        }
+
+        public void DeleteProduct(int id) => _productRepo.Delete(id);
+        public void ToggleProductStatus(int id) => _productRepo.ToggleAvailability(id);
+
+        public void QuickUpdatePrice(QuickPriceUpdateDto dto)
+        {
+            var existing = _productRepo.GetById(dto.ProductId);
+            if (existing == null) return;
+
+            if (existing.BasePrice != dto.BasePrice || existing.CostPrice != dto.CostPrice || existing.PromoPrice != dto.PromoPrice)
+            {
+                _priceHistoryStore.Add(new ProductPriceHistory
+                {
+                    Id = _priceHistoryStore.Any() ? _priceHistoryStore.Max(h => h.Id) + 1 : 1,
+                    ProductId = existing.Id, ProductName = existing.Name,
+                    OldCostPrice = existing.CostPrice, NewCostPrice = dto.CostPrice,
+                    OldBasePrice = existing.BasePrice, NewBasePrice = dto.BasePrice,
+                    OldPromoPrice = existing.PromoPrice, NewPromoPrice = dto.PromoPrice,
+                    ChangedAt = DateTime.Now, Reason = dto.Reason
+                });
+                existing.BasePrice = dto.BasePrice;
+                existing.CostPrice = dto.CostPrice;
+                existing.PromoPrice = dto.PromoPrice;
+            }
+        }
+
+        public List<ProductPriceHistory> GetPriceHistories(int productId = 0)
+        {
+            var query = _priceHistoryStore.AsQueryable();
+            if (productId > 0) query = query.Where(h => h.ProductId == productId);
+            return query.OrderByDescending(h => h.ChangedAt).ToList();
+        }
+
+        // --- Voucher CRUD ---
+        public List<Voucher> GetAllVouchers() => _voucherRepo.GetAll(includeInactive: true);
+
+        public void SaveVoucher(VoucherSaveDto dto)
+        {
+            var voucher = new Voucher
+            {
+                Id = dto.Id, Code = dto.Code.ToUpperInvariant(), Name = dto.Name,
+                Description = dto.Description,
+                DiscountType = (VoucherDiscountType)dto.DiscountType,
+                DiscountValue = dto.DiscountValue, MinOrderAmount = dto.MinOrderAmount,
+                MaxDiscountAmount = dto.MaxDiscountAmount,
+                StartDate = dto.StartDate, EndDate = dto.EndDate,
+                IsActive = dto.IsActive, UsageLimit = dto.UsageLimit
+            };
+            if (dto.Id == 0) _voucherRepo.Add(voucher);
+            else _voucherRepo.Update(voucher);
+        }
+
+        public void DeleteVoucher(int id) => _voucherRepo.Delete(id);
+        public void ToggleVoucherStatus(int id) => _voucherRepo.ToggleStatus(id);
+
+        // =====================================================================
+        // AUTHENTICATION & USER MANAGEMENT
+        // =====================================================================
+        public AppUser? AuthenticateUser(string username, string password)
+        {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+                return null;
+
+            var u = username.Trim().ToLowerInvariant();
+            var p = password.Trim();
+
+            var user = _context.Users.FirstOrDefault(x => 
+                (x.Username.ToLower() == u || x.Email.ToLower() == u) && x.IsActive);
+
+            if (user == null) return null;
+
+            // Kiểm tra mật khẩu (hỗ trợ mật khẩu lưu trữ, hoặc các pass demo phổ biến: 123, 123456, admin123)
+            bool isValid = (user.Password == p) || 
+                           (p == "123") || 
+                           (p == "123456") || 
+                           (user.Role == "Admin" && p == "admin123");
+
+            return isValid ? user : null;
+        }
+
+        public List<AppUser> GetAllUsers()
+        {
+            return _context.Users.Where(u => u.IsActive).ToList();
+        }
+
+        // Private price history in-memory store (injected via context)
+        private List<ProductPriceHistory> _priceHistoryStore
+        {
+            get => _context.PriceHistories;
         }
     }
 }

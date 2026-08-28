@@ -22,16 +22,15 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
-// 1. [FAKE] Data Context - In-Memory Store (sẽ xóa dần khi từng Repository chuyển sang SQL thật)
-// CategoryRepository đã kết nối SQL Server thật → không cần MockDbContext cho Categories nữa
+// 1. [FAKE] Data Context - In-Memory Store (chờ kết nối DB thật)
 builder.Services.AddSingleton<MockDbContext>();
 
 // 2. Repository Layer (Data Access)
-// ✅ [SQL THẬT]  CategoryRepository   → dùng IConfiguration + ADO.NET → SQL Server
-// ⏳ [FAKE]     ProductRepository    → vẫn dùng MockDbContext (chưa migrate)
-// ⏳ [FAKE]     VoucherRepository    → vẫn dùng MockDbContext (chưa migrate)
-// ⏳ [FAKE]     TableRepository      → vẫn dùng MockDbContext (chưa migrate)
-// ⏳ [FAKE]     OrderRepository      → vẫn dùng MockDbContext (chưa migrate)
+// ⏳ [FAKE]  CategoryRepository  → dùng MockDbContext (rollback do chưa có DB)
+// ⏳ [FAKE]  ProductRepository   → dùng MockDbContext
+// ⏳ [FAKE]  VoucherRepository   → dùng MockDbContext
+// ⏳ [FAKE]  TableRepository     → dùng MockDbContext
+// ⏳ [FAKE]  OrderRepository     → dùng MockDbContext
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();

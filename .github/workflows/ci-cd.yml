@@ -1,0 +1,73 @@
+name: E_Coffee CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  PROJECT_PATH: 'E_Coffee.csproj'
+
+jobs:
+  # ─── JOB 1: BUILD & TEST ───────────────────────────────────────────────────
+  build:
+    name: 🔨 Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: 🔨 Build (Release)
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: 📤 Publish
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./publish
+
+      - name: 📦 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecoffee-app
+          path: ./publish
+          retention-days: 7
+
+  # ─── JOB 2: DEPLOY TO AZURE APP SERVICE (tuỳ chọn) ──────────────────────
+  # Để kích hoạt deploy, bạn cần:
+  # 1. Tạo Azure App Service (Free F1 tier)
+  # 2. Lấy Publish Profile → thêm vào GitHub Secrets với tên AZURE_WEBAPP_PUBLISH_PROFILE
+  # 3. Bỏ comment toàn bộ job deploy bên dưới
+
+  # deploy:
+  #   name: 🚀 Deploy to Azure App Service
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment:
+  #     name: production
+  #     url: ${{ steps.deploy.outputs.webapp-url }}
+  #
+  #   steps:
+  #     - name: ⬇️ Download artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ecoffee-app
+  #         path: ./publish
+  #
+  #     - name: 🚀 Deploy to Azure Web App
+  #       id: deploy
+  #       uses: azure/webapps-deploy@v3
+  #       with:
+  #         app-name: 'ecoffee-app'          # ← Thay bằng tên App Service của bạn
+  #         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+  #         package: ./publish

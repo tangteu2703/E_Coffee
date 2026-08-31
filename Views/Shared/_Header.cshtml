@@ -1,25 +1,37 @@
 @using E_Coffee.Models
 
+<style>
+    .brand-name {
+        font-size: 0.8rem;
+        letter-spacing: -0.5px;
+    }
+    @@media (min-width: 768px) {
+        .brand-name {
+            font-size: 1.25rem;
+        }
+    }
+</style>
+
 <header class="sticky-top bg-white bg-opacity-95 backdrop-blur border-bottom shadow-xs">
     <div class="container-xl d-flex align-items-center justify-content-between py-2 px-3">
         <!-- Brand Logo -->
         <a href="/" class="d-flex align-items-center gap-2 text-decoration-none">
             <img src="~/image/logo_hoanggia.png" alt="Hoàng Gia E-Coffee" class="rounded-3 shadow-sm object-fit-contain" style="width: 38px; height: 38px;" />
-            <div class="d-flex flex-column">
-                <span class="fw-extrabold text-danger lh-1" style="font-size: 1.25rem; letter-spacing: -0.5px;">HOÀNG GIA</span>
+            <div class="d-flex flex-column" style="white-space: nowrap;">
+                <span class="fw-extrabold text-danger lh-1 brand-name">HOÀNG GIA</span>
                 <span class="fw-bold text-warning-emphasis text-uppercase" style="font-size: 0.6rem; letter-spacing: 1.5px; margin-top: 1px;">E-COFFEE</span>
             </div>
         </a>
 
         <!-- Navigation Links (Desktop) -->
-        <ul class="nav nav-pills d-flex align-items-center gap-1 mx-auto">
+        <ul class="nav nav-pills d-flex flex-nowrap align-items-center gap-1 mx-auto">
             <li class="nav-item">
-                <a href="/" class="nav-link btn-sm fw-bold px-3 py-1.5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active bg-secondary" : "text-dark")">
+                <a href="/" class="nav-link btn-sm fw-bold px-2 px-md-3 py-1 py-md-1.5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active bg-secondary" : "text-dark")" style="white-space: nowrap;">
                     Trang Chủ
                 </a>
             </li>
             <li class="nav-item">
-                <a href="/Order" class="nav-link btn-sm fw-bold px-3 py-1.5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Order" ? "active bg-danger" : "text-dark")">
+                <a href="/Order" class="nav-link btn-sm fw-bold px-2 px-md-3 py-1 py-md-1.5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Order" ? "active bg-danger" : "text-dark")" style="white-space: nowrap;">
                     Thực Đơn
                 </a>
             </li>

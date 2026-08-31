@@ -22,13 +22,15 @@ namespace E_Coffee.Controllers
             var products = _catalogService.GetProducts();
             var tables = _catalogService.GetBarTables();
             var onlineOrders = _catalogService.GetBarOnlineOrders();
+            var orderHistory = _catalogService.GetOrderHistory();
 
             var vm = new BarPageViewModel
             {
                 Categories = categories,
                 Products = products,
                 Tables = tables,
-                OnlineOrders = onlineOrders
+                OnlineOrders = onlineOrders,
+                OrderHistory = orderHistory
             };
 
             return View(vm);
@@ -177,6 +179,36 @@ namespace E_Coffee.Controllers
         {
             var customer = _catalogService.FindCustomerByPhone(phone);
             return Json(customer);
+        }
+
+        // AJAX API: Lấy lịch sử đơn đã hoàn tất / đã hủy
+        [HttpGet]
+        public IActionResult GetOrderHistory()
+        {
+            var history = _catalogService.GetOrderHistory();
+            return Json(history);
+        }
+
+        // AJAX API: Hủy đơn Online (Delivery/Pickup đang Pending hoặc Preparing)
+        [HttpPost]
+        public IActionResult CancelOrder([FromBody] BarCancelOrderRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.OrderId))
+            {
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Reason))
+            {
+                return BadRequest(new { success = false, message = "Vui lòng nhập lý do hủy đơn" });
+            }
+
+            var success = _catalogService.CancelOnlineOrder(request.OrderId, request.Reason);
+            if (success)
+            {
+                return Json(new { success = true, message = $"Đã hủy đơn {request.OrderId} thành công" });
+            }
+            return BadRequest(new { success = false, message = "Không thể hủy đơn. Đơn không tồn tại hoặc đã hoàn tất" });
         }
     }
 }

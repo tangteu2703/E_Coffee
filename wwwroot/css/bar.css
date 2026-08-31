@@ -644,3 +644,66 @@
     margin-top: 4px;
 }
 
+/* ==========================================================================
+   HISTORY TAB - Lịch sử thanh toán
+   ========================================================================== */
+
+.history-table-wrapper {
+    overflow-y: auto;
+    max-height: calc(100vh - 320px);
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.history-table-wrapper::-webkit-scrollbar {
+    width: 5px;
+}
+.history-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+#historyTable thead th {
+    font-size: 0.73rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    background: #f8fafc;
+    padding: 8px 10px;
+    border-bottom: 2px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+#historyTable tbody td {
+    padding: 7px 10px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+#historyTable tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+#historyTable tbody tr.table-danger {
+    background-color: #fff5f5;
+}
+#historyTable tbody tr.table-danger:hover {
+    background-color: #fee2e2;
+}
+
+/* Nút Hủy đơn trên card online - animation */
+.online-item-card .btn-outline-danger {
+    transition: all 0.2s ease;
+    border-width: 1.5px;
+    letter-spacing: 0.02em;
+}
+.online-item-card .btn-outline-danger:hover {
+    background-color: #dc3545;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.35);
+}
+

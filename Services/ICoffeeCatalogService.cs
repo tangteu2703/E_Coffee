@@ -19,6 +19,8 @@ namespace E_Coffee.Services
         BarSaveOrderResult SaveBarOrder(BarSaveOrderRequest request);
         bool UpdateOnlineOrderStatus(string orderId, BarOnlineOrderStatus status);
         CustomerLookupResult FindCustomerByPhone(string phone);
+        List<BarOrderHistoryItem> GetOrderHistory();
+        bool CancelOnlineOrder(string orderId, string reason);
 
         // === Product Management Methods ===
         ProductManagementIndexViewModel GetProductManagementViewModel();

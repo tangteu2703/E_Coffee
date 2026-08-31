@@ -59,5 +59,54 @@ namespace E_Coffee.Repositories
                 _context.OnlineOrders.Insert(0, order);
             }
         }
+
+        public bool CancelOnlineOrder(string orderId, string reason)
+        {
+            var order = GetOnlineOrderById(orderId);
+            if (order == null) return false;
+
+            // Chỉ hủy được đơn đang Pending hoặc Preparing
+            if (order.Status != BarOnlineOrderStatus.Pending && order.Status != BarOnlineOrderStatus.Preparing)
+                return false;
+
+            var orderTypeLabel = order.OrderType == OrderType.Delivery ? "Giao tận nơi"
+                               : order.OrderType == OrderType.Pickup ? "Đến lấy / Mang đi"
+                               : "Tại quầy";
+
+            // Đẩy vào lịch sử trước khi xóa
+            _context.OrderHistory.Insert(0, new BarOrderHistoryItem
+            {
+                OrderId = order.OrderId,
+                CustomerName = order.CustomerName,
+                CustomerPhone = order.CustomerPhone,
+                OrderType = order.OrderType,
+                OrderTypeLabel = orderTypeLabel,
+                OrderTime = order.OrderTime,
+                ClosedAt = DateTime.Now,
+                FinalStatus = BarOnlineOrderStatus.Cancelled,
+                TotalAmount = order.TotalAmount,
+                DiscountAmount = 0,
+                FinalAmount = order.TotalAmount,
+                PaymentMethod = "",
+                CancelReason = reason,
+                ItemCount = order.ItemCount,
+                TableOrOrderId = order.OrderId
+            });
+
+            // Xóa khỏi danh sách active orders
+            _context.OnlineOrders.Remove(order);
+            return true;
+        }
+
+        public List<BarOrderHistoryItem> GetOrderHistory()
+        {
+            return _context.OrderHistory.OrderByDescending(h => h.ClosedAt).ToList();
+        }
+
+        public void AddToHistory(BarOrderHistoryItem historyItem)
+        {
+            if (historyItem == null) return;
+            _context.OrderHistory.Insert(0, historyItem);
+        }
     }
 }

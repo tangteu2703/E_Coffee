@@ -8,6 +8,7 @@ const ECoffeeBar = (function () {
     let draftCarts = {}; // Lưu nháp giỏ hàng theo từng Bàn / Đơn: targetKey -> { items: [...], voucher: {...} }
     let tablesData = [];
     let onlineOrdersData = [];
+    let orderHistoryData = [];
     let categoriesData = [];
     let productsData = [];
     let activeCategoryId = 0;
@@ -225,6 +226,15 @@ const ECoffeeBar = (function () {
                 if (menuBadge) menuBadge.textContent = `${productsData.length} món`;
             })
             .catch(err => console.error('Error fetching products:', err));
+
+        // 5. Tải lịch sử đơn (song song)
+        fetch('/Bar/GetOrderHistory')
+            .then(res => res.json())
+            .then(data => {
+                orderHistoryData = data || [];
+                updateHistoryBadge();
+            })
+            .catch(err => console.error('Error fetching order history:', err));
     }
 
     // Cập nhật các chỉ số tổng quan ở header banner
@@ -313,9 +323,11 @@ const ECoffeeBar = (function () {
             let delHtml = '';
             deliveryOrders.forEach(order => {
                 const isPending = order.status === 1;
+                const isPrep = order.status === 2;
                 const statusBadge = isPending ? 'bg-danger' : 'bg-warning text-dark';
                 const statusName = isPending ? 'Chờ pha chế' : 'Đang pha chế';
                 const isSelected = (currentTarget.id === order.OrderId) ? 'selected' : '';
+                const canCancel = isPending || isPrep;
 
                 const orderTimeStr = order.orderTime ? new Date(order.orderTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -334,6 +346,12 @@ const ECoffeeBar = (function () {
                             <span class="text-secondary style-italic" style="font-size: 0.72rem;"><i class="bi bi-clock"></i> ${orderTimeStr}</span>
                             <span class="fw-bold text-danger" style="font-size: 0.88rem;">${(order.totalAmount || 0).toLocaleString('vi-VN')}đ (${order.itemCount} món)</span>
                         </div>
+                        ${canCancel ? `
+                        <div class="mt-2 pt-1 border-top">
+                            <button class="btn btn-sm btn-outline-danger w-100" style="font-size:0.73rem;padding:3px 8px;" onclick="ECoffeeBar.cancelOnlineOrder('${order.orderId}'); event.stopPropagation();">
+                                <i class="bi bi-x-circle me-1"></i>Hủy Đơn
+                            </button>
+                        </div>` : ''}
                     </div>
                 `;
             });
@@ -353,10 +371,12 @@ const ECoffeeBar = (function () {
 
             pickupOrders.forEach(order => {
                 const isPending = order.status === 1;
+                const isPrep = order.status === 2;
                 const statusBadge = isPending ? 'bg-danger' : 'bg-warning text-dark';
                 const statusName = isPending ? 'Chờ pha chế' : 'Đang pha chế';
                 const isSelected = (currentTarget.id === order.orderId) ? 'selected' : '';
                 const orderTimeStr = order.orderTime ? new Date(order.orderTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+                const canCancel = isPending || isPrep;
 
                 pickHtml += `
                     <div class="online-item-card ${isSelected}" data-order-id="${order.orderId}" onclick="ECoffeeBar.selectOnlineOrder('${order.orderId}')">
@@ -373,6 +393,12 @@ const ECoffeeBar = (function () {
                             <span class="text-secondary style-italic" style="font-size: 0.72rem;"><i class="bi bi-clock"></i> ${orderTimeStr}</span>
                             <span class="fw-bold text-danger" style="font-size: 0.88rem;">${(order.totalAmount || 0).toLocaleString('vi-VN')}đ (${order.itemCount} món)</span>
                         </div>
+                        ${canCancel ? `
+                        <div class="mt-2 pt-1 border-top">
+                            <button class="btn btn-sm btn-outline-danger w-100" style="font-size:0.73rem;padding:3px 8px;" onclick="ECoffeeBar.cancelOnlineOrder('${order.orderId}'); event.stopPropagation();">
+                                <i class="bi bi-x-circle me-1"></i>Hủy Đơn
+                            </button>
+                        </div>` : ''}
                     </div>
                 `;
             });
@@ -456,24 +482,328 @@ const ECoffeeBar = (function () {
         grid.innerHTML = html;
     }
 
-    // Tab Switching: Tables & Online vs Menu
+    // Tab Switching: Tables & Online vs Menu vs History
     function switchTab(tabName) {
         const btnTables = document.getElementById('tab-tables-btn');
         const btnMenu = document.getElementById('tab-menu-btn');
+        const btnHistory = document.getElementById('tab-history-btn');
         const contentTables = document.getElementById('tabTablesContent');
         const contentMenu = document.getElementById('tabMenuContent');
+        const contentHistory = document.getElementById('tabHistoryContent');
+
+        // Reset all
+        [btnTables, btnMenu, btnHistory].forEach(b => b?.classList.remove('active'));
+        [contentTables, contentMenu, contentHistory].forEach(c => c?.classList.add('d-none'));
 
         if (tabName === 'tables') {
             btnTables?.classList.add('active');
-            btnMenu?.classList.remove('active');
             contentTables?.classList.remove('d-none');
-            contentMenu?.classList.add('d-none');
-        } else {
+        } else if (tabName === 'menu') {
             btnMenu?.classList.add('active');
-            btnTables?.classList.remove('active');
             contentMenu?.classList.remove('d-none');
-            contentTables?.classList.add('d-none');
+        } else if (tabName === 'history') {
+            btnHistory?.classList.add('active');
+            contentHistory?.classList.remove('d-none');
+            // Load mới nhất khi vào tab
+            loadOrderHistory();
         }
+    }
+
+    // ==========================================================================
+    // LỊCH SỬ THANH TOÁN
+    // ==========================================================================
+
+    function updateHistoryBadge() {
+        const badge = document.getElementById('tabHistoryBadge');
+        if (badge) badge.textContent = orderHistoryData.length;
+        const totalBadge = document.getElementById('historyTotalBadge');
+        if (totalBadge) totalBadge.textContent = `${orderHistoryData.length} đơn`;
+    }
+
+    function loadOrderHistory() {
+        fetch('/Bar/GetOrderHistory')
+            .then(res => res.json())
+            .then(data => {
+                orderHistoryData = data || [];
+                updateHistoryBadge();
+                renderOrderHistory(orderHistoryData);
+            })
+            .catch(err => {
+                console.error('Error loading order history:', err);
+            });
+    }
+
+    function renderOrderHistory(data) {
+        const tbody = document.getElementById('historyTableBody');
+        if (!tbody) return; // Bảng đã render server-side nếu có dữ liệu ban đầu
+
+        const payMethodLabel = (m) => {
+            if (!m) return `<span class='text-muted'>&#8212;</span>`;
+            if (m === 'qr' || m === 'Chuyển khoản QR') return `<i class='bi bi-qr-code-scan'></i> QR`;
+            if (m === 'card' || m === 'Thẻ') return `<i class='bi bi-credit-card'></i> Thẻ`;
+            if (m === 'cash' || m === 'Tiền mặt') return `<i class='bi bi-cash'></i> Tiền mặt`;
+            return m;
+        };
+
+        if (data.length === 0) {
+            const container = document.getElementById('historyListContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-2 opacity-40"></i>
+                        <div class="fw-bold mt-2" style="font-size: 0.85rem;">Chưa có đơn nào hôm nay</div>
+                    </div>`;
+            }
+            return;
+        }
+
+        let html = '';
+        data.forEach(h => {
+            const isCompleted = h.finalStatus === 4;
+            const rowClass = isCompleted ? '' : 'table-danger';
+            const badgeClass = isCompleted ? 'bg-success' : 'bg-danger';
+            const statusLabel = isCompleted ? 'Đã TT' : 'Đã hủy';
+            const histStatus = isCompleted ? 'completed' : 'cancelled';
+
+            const orderTime = h.closedAt ? new Date(h.closedAt) : new Date();
+            const timeStr = orderTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = `${String(orderTime.getDate()).padStart(2,'0')}/${String(orderTime.getMonth()+1).padStart(2,'0')}`;
+
+            const typeBg = h.orderType === 2 ? 'bg-primary'
+                         : (h.orderTypeLabel === 'Tại bàn') ? 'bg-secondary'
+                         : 'bg-info text-dark';
+
+            const cancelNote = h.cancelReason ? `<div class="text-muted text-truncate" style="font-size:0.65rem;max-width:80px;" title="${h.cancelReason}">${h.cancelReason}</div>` : '';
+            const phoneHtml = h.customerPhone ? `<div class="text-muted font-monospace" style="font-size:0.7rem;">${h.customerPhone}</div>` : '';
+            const discountHtml = h.discountAmount > 0 ? `<div class="text-success" style="font-size:0.68rem;">-${(h.discountAmount||0).toLocaleString('vi-VN')}đ</div>` : '';
+
+            html += `
+                <tr class="${rowClass}" data-history-status="${histStatus}" onclick="ECoffeeBar.viewHistoryDetail('${h.orderId}')" style="cursor:pointer;">
+                    <td><span class="fw-bold font-monospace text-dark" style="font-size:0.78rem;">${h.orderId}</span></td>
+                    <td>
+                        <div class="fw-semibold text-dark text-truncate" style="max-width:130px;" title="${h.customerName}">${h.customerName}</div>
+                        ${phoneHtml}
+                    </td>
+                    <td><span class="badge ${typeBg}" style="font-size:0.65rem;">${h.orderTypeLabel || 'Đơn'}</span></td>
+                    <td>
+                        <div style="font-size:0.73rem;">${timeStr}</div>
+                        <div class="text-muted" style="font-size:0.68rem;">${dateStr}</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold text-danger" style="font-size:0.82rem;">${(h.finalAmount||0).toLocaleString('vi-VN')}đ</div>
+                        ${discountHtml}
+                    </td>
+                    <td><span style="font-size:0.72rem;">${payMethodLabel(h.paymentMethod)}</span></td>
+                    <td>
+                        <span class="badge ${badgeClass}" style="font-size:0.65rem;">${statusLabel}</span>
+                        ${cancelNote}
+                    </td>
+                </tr>`;
+        });
+
+        // Rebuild bảng nếu cần (trường hợp ban đầu empty)
+        const container = document.getElementById('historyListContainer');
+        if (container && !document.getElementById('historyTable')) {
+            container.innerHTML = `
+                <div class="history-table-wrapper">
+                    <table class="table table-sm table-hover mb-0" id="historyTable" style="font-size: 0.8rem;">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:120px;">Mã đơn</th>
+                                <th>Khách hàng</th>
+                                <th style="width:100px;">Loại đơn</th>
+                                <th style="width:80px;">Đưa đơn lúc</th>
+                                <th style="width:95px;">Thành tiền</th>
+                                <th style="width:80px;">Thanh toán</th>
+                                <th style="width:85px;">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>`;
+        }
+
+        const newTbody = document.getElementById('historyTableBody');
+        if (newTbody) newTbody.innerHTML = html;
+    }
+
+    function filterHistory() {
+        const filterVal = document.getElementById('historyFilterStatus')?.value || 'all';
+        const rows = document.querySelectorAll('#historyTableBody tr[data-history-status]');
+        rows.forEach(row => {
+            const status = row.getAttribute('data-history-status');
+            if (filterVal === 'all' || status === filterVal) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function refreshHistory() {
+        loadOrderHistory();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Đã cập nhật lịch sử', showConfirmButton: false, timer: 1000 });
+    }
+
+    // Xem chi tiet don trong lich su
+    function viewHistoryDetail(orderId) {
+        const h = orderHistoryData.find(o => o.orderId === orderId);
+        if (!h) {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Khong tim thay don nay. Hay lam moi lich su.', showConfirmButton: false, timer: 2000 });
+            return;
+        }
+
+        const isCompleted = h.finalStatus === 4;
+        const statusLabel = isCompleted
+            ? '<span style="background:#22c55e;color:#fff;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;">Da thanh toan</span>'
+            : '<span style="background:#dc3545;color:#fff;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;">Da huy</span>';
+
+        const closedTime = h.closedAt ? new Date(h.closedAt).toLocaleString('vi-VN') : '';
+
+        const payMethodLabel = (m) => {
+            if (!m) return '&#8212;';
+            if (m === 'qr' || m === 'Chuyen khoan QR') return '&#128243; QR';
+            if (m === 'card' || m === 'The') return '&#128179; The';
+            if (m === 'cash' || m === 'Tien mat') return '&#128181; Tien mat';
+            return m;
+        };
+
+        // Render danh sach mon
+        let itemsHtml = '';
+        if (h.items && h.items.length > 0) {
+            let rows = '';
+            h.items.forEach(item => {
+                const name = item.productName || item.name || 'Mon';
+                const extras = [];
+                if (item.sizeName && item.sizeName !== 'Khong') extras.push(item.sizeName);
+                if (item.toppingName && item.toppingName !== 'Khong') extras.push(item.toppingName);
+                const extrasHtml = extras.length > 0
+                    ? `<div style="font-size:0.7rem;color:#94a3b8;">${extras.join(' \u00b7 ')}</div>` : '';
+                const price = (item.subTotal || 0).toLocaleString('vi-VN');
+                rows += `<tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:8px 10px;">
+                        <div style="font-weight:600;color:#1e293b;">${name}</div>${extrasHtml}
+                    </td>
+                    <td style="padding:8px 6px;text-align:center;font-weight:600;color:#475569;">x${item.quantity}</td>
+                    <td style="padding:8px 10px;text-align:right;font-weight:700;color:#dc3545;">${price}d</td>
+                </tr>`;
+            });
+            itemsHtml = `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-top:10px;">
+                <table style="width:100%;font-size:0.82rem;border-collapse:collapse;">
+                    <thead><tr style="background:#f8fafc;">
+                        <th style="padding:7px 10px;text-align:left;color:#64748b;font-size:0.7rem;text-transform:uppercase;font-weight:700;">Mon</th>
+                        <th style="padding:7px 6px;text-align:center;color:#64748b;font-size:0.7rem;text-transform:uppercase;font-weight:700;width:40px;">SL</th>
+                        <th style="padding:7px 10px;text-align:right;color:#64748b;font-size:0.7rem;text-transform:uppercase;font-weight:700;width:90px;">Gia</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table></div>`;
+        } else {
+            itemsHtml = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.82rem;">Không có món</div>';
+        }
+
+        const discountRow = h.discountAmount > 0
+            ? `<div style="display:flex;justify-content:space-between;font-size:0.8rem;color:#16a34a;margin-bottom:4px;"><span>Giam gia</span><span>-${(h.discountAmount||0).toLocaleString('vi-VN')}d</span></div>` : '';
+
+        const cancelRow = h.cancelReason
+            ? `<div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-top:10px;font-size:0.78rem;color:#dc3545;text-align:left;"><strong>Lý do hủy:</strong> ${h.cancelReason}</div>` : '';
+
+        Swal.fire({
+            title: 'Chi tiết đơn ' + h.orderId,
+            width: 500,
+            showConfirmButton: false,
+            showCloseButton: true,
+            html: `<div style="text-align:left;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+                    <div>
+                        <div style="font-weight:700;color:#1e293b;font-size:0.92rem;">${h.customerName}</div>
+                        ${h.customerPhone ? '<div style="font-size:0.75rem;color:#64748b;font-family:monospace;">' + h.customerPhone + '</div>' : ''}
+                    </div>
+                    <div style="text-align:right;">${statusLabel}<div style="font-size:0.72rem;color:#94a3b8;margin-top:3px;">${closedTime}</div></div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                    <span style="font-size:0.75rem;background:#f1f5f9;border-radius:20px;padding:3px 10px;color:#475569;">${h.orderTypeLabel || 'Don hang'}</span>
+                    ${h.paymentMethod ? '<span style="font-size:0.75rem;background:#f1f5f9;border-radius:20px;padding:3px 10px;color:#475569;">' + payMethodLabel(h.paymentMethod) + '</span>' : ''}
+                </div>
+                <hr style="margin:8px 0;border-color:#f1f5f9;">
+                ${itemsHtml}
+                <div style="margin-top:10px;padding:10px 12px;background:#f8fafc;border-radius:10px;">
+                    ${discountRow}
+                    <div style="display:flex;justify-content:space-between;font-weight:700;color:#dc3545;font-size:0.92rem;">
+                        <span>Tổng cộng</span><span>${(h.finalAmount||h.totalAmount||0).toLocaleString('vi-VN')}d</span>
+                    </div>
+                </div>
+                ${cancelRow}
+            </div>`,
+            customClass: { htmlContainer: 'text-start' }
+        });
+    }
+
+    // Hủy đơn Online (Delivery / Pickup) với popup nhập lý do
+    function cancelOnlineOrder(orderId) {
+        if (!orderId) return;
+
+        Swal.fire({
+            title: `Hủy đơn ${orderId}?`,
+            html: `
+                <p class="text-muted mb-3" style="font-size:0.85rem;">
+                    Hành động này sẽ chuyển đơn sang trạng thái <strong class="text-danger">Đã hủy</strong>.<br>
+                    Vui lòng nhập lý do để ghi nhận.
+                </p>
+                <textarea
+                    id="swal-cancel-reason"
+                    placeholder="Nhập lý do hủy đơn... (bắt buộc)"
+                    style="width:100%;box-sizing:border-box;padding:10px 14px;font-size:0.875rem;line-height:1.5;border:1.5px solid #e2e8f0;border-radius:10px;resize:none;height:90px;outline:none;font-family:inherit;color:#1e293b;background:#f8fafc;transition:border-color 0.2s;"
+                    onfocus="this.style.borderColor='#dc3545';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(220,53,69,0.12)'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';this.style.boxShadow='none'"
+                ></textarea>`,
+            icon: 'warning',
+            width: 460,
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-x-circle me-1"></i>Xác nhận Hủy Đơn',
+            cancelButtonText: 'Giữ lại',
+            confirmButtonColor: '#dc3545',
+            focusCancel: true,
+            customClass: { htmlContainer: 'text-start px-2' },
+            preConfirm: () => {
+                const reason = document.getElementById('swal-cancel-reason')?.value?.trim();
+                if (!reason) {
+                    Swal.showValidationMessage('<i class="bi bi-exclamation-circle me-1"></i>Vui lòng nhập lý do hủy đơn!');
+                    return false;
+                }
+                return reason;
+            }
+        }).then(result => {
+            if (!result.isConfirmed) return;
+
+            const reason = result.value;
+
+            fetch('/Bar/CancelOrder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: orderId, reason: reason })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, body: data })))
+            .then(({ status, body }) => {
+                if (status === 200 && body.success) {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: `Đã hủy đơn ${orderId} thành công`,
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                    // Reload dữ liệu đơn online và lịch sử
+                    loadInitialData(true);
+                } else {
+                    Swal.fire('Lỗi', body.message || 'Không thể hủy đơn này', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Cancel order error:', err);
+                Swal.fire('Lỗi', 'Không thể kết nối máy chủ', 'error');
+            });
+        });
     }
 
     // Select Table
@@ -1557,6 +1887,10 @@ const ECoffeeBar = (function () {
         confirmCheckout: confirmCheckout,
         applyVoucher: applyVoucher,
         removeVoucher: removeVoucher,
+        cancelOnlineOrder: cancelOnlineOrder,
+        filterHistory: filterHistory,
+        refreshHistory: refreshHistory,
+        viewHistoryDetail: viewHistoryDetail,
         BANK_CONFIG: BANK_CONFIG,
         generateVietQrUrl: generateVietQrUrl,
         readVietnameseCurrency: readVietnameseCurrency

@@ -19,12 +19,14 @@ namespace E_Coffee.Data
         public List<Voucher> Vouchers { get; set; } = new();
         public List<BarTableItem> Tables { get; set; } = new();
         public List<BarOnlineOrderItem> OnlineOrders { get; set; } = new();
+        public List<BarOrderHistoryItem> OrderHistory { get; set; } = new();
         public List<ProductPriceHistory> PriceHistories { get; set; } = new();
         public List<AppUser> Users { get; set; } = new();
 
         public MockDbContext()
         {
             SeedData();
+            SeedOrderHistory();
         }
 
         private void SeedData()
@@ -566,6 +568,148 @@ namespace E_Coffee.Data
                     IsActive = true
                 }
             };
+        }
+
+        /// <summary>Seed dữ liệu lịch sử đơn đã hoàn tất / đã hủy trong ngày</summary>
+        private void SeedOrderHistory()
+        {
+            OrderHistory = new List<BarOrderHistoryItem>
+            {
+                new BarOrderHistoryItem
+                {
+                    OrderId = "#ORD-1018",
+                    CustomerName = "Phạm Thùy Linh",
+                    CustomerPhone = "0901 234 567",
+                    OrderType = OrderType.Delivery,
+                    OrderTypeLabel = "Giao tận nơi",
+                    OrderTime = DateTime.Now.AddHours(-4).AddMinutes(-15),
+                    ClosedAt = DateTime.Now.AddHours(-3).AddMinutes(-42),
+                    FinalStatus = BarOnlineOrderStatus.Completed,
+                    TotalAmount = 115000,
+                    DiscountAmount = 11500,
+                    FinalAmount = 103500,
+                    PaymentMethod = "qr",
+                    ItemCount = 3,
+                    TableOrOrderId = "#ORD-1018",
+                    Items = new List<BarHistoryItemDetail>
+                    {
+                        new BarHistoryItemDetail { ProductName = "Phin Sữa Đá", SizeName = "Vừa (M)", Quantity = 2, SubTotal = 58000 },
+                        new BarHistoryItemDetail { ProductName = "Trà Thạch Đào", SizeName = "Lớn (L)", ToppingName = "Thạch Lá Dứa", Quantity = 1, SubTotal = 57000 }
+                    }
+                },
+                new BarOrderHistoryItem
+                {
+                    OrderId = "Bàn 03",
+                    CustomerName = "Lê Văn Tuấn",
+                    CustomerPhone = "0966 543 210",
+                    OrderType = OrderType.Pickup,
+                    OrderTypeLabel = "Tại bàn",
+                    OrderTime = DateTime.Now.AddHours(-3).AddMinutes(-30),
+                    ClosedAt = DateTime.Now.AddHours(-2).AddMinutes(-55),
+                    FinalStatus = BarOnlineOrderStatus.Completed,
+                    TotalAmount = 87000,
+                    DiscountAmount = 0,
+                    FinalAmount = 87000,
+                    PaymentMethod = "cash",
+                    ItemCount = 2,
+                    TableOrOrderId = "Bàn 03",
+                    Items = new List<BarHistoryItemDetail>
+                    {
+                        new BarHistoryItemDetail { ProductName = "Bạc Xỉu Nóng", SizeName = "Vừa (M)", Quantity = 1, SubTotal = 35000 },
+                        new BarHistoryItemDetail { ProductName = "Bánh Mỳ Que Gà Xé Phô Mai", SizeName = "Nhỏ (S)", Quantity = 2, SubTotal = 52000 }
+                    }
+                },
+                new BarOrderHistoryItem
+                {
+                    OrderId = "#MD-0930-441",
+                    CustomerName = "Khách mang đi",
+                    CustomerPhone = "",
+                    OrderType = OrderType.Pickup,
+                    OrderTypeLabel = "Đến lấy / Mang đi",
+                    OrderTime = DateTime.Now.AddHours(-2).AddMinutes(-40),
+                    ClosedAt = DateTime.Now.AddHours(-2).AddMinutes(-20),
+                    FinalStatus = BarOnlineOrderStatus.Completed,
+                    TotalAmount = 58000,
+                    DiscountAmount = 5800,
+                    FinalAmount = 52200,
+                    PaymentMethod = "qr",
+                    ItemCount = 2,
+                    TableOrOrderId = "#MD-0930-441",
+                    Items = new List<BarHistoryItemDetail>
+                    {
+                        new BarHistoryItemDetail { ProductName = "Trà Chanh Giã Tay Quảng Đông", SizeName = "Vừa (M)", ToppingName = "Trân Châu Trắng 3Q", Quantity = 2, SubTotal = 58000 }
+                    }
+                },
+                new BarOrderHistoryItem
+                {
+                    OrderId = "#ORD-1020",
+                    CustomerName = "Nguyễn Minh Kính",
+                    CustomerPhone = "0855 666 777",
+                    OrderType = OrderType.Delivery,
+                    OrderTypeLabel = "Giao tận nơi",
+                    OrderTime = DateTime.Now.AddHours(-1).AddMinutes(-55),
+                    ClosedAt = DateTime.Now.AddHours(-1).AddMinutes(-40),
+                    FinalStatus = BarOnlineOrderStatus.Cancelled,
+                    TotalAmount = 72000,
+                    DiscountAmount = 0,
+                    FinalAmount = 72000,
+                    PaymentMethod = "",
+                    CancelReason = "Khách đổi ý, hủy đơn sau khi đặt",
+                    ItemCount = 2,
+                    TableOrOrderId = "#ORD-1020",
+                    Items = new List<BarHistoryItemDetail>
+                    {
+                        new BarHistoryItemDetail { ProductName = "Trà Tắc Xí Muội Đường Phèn", SizeName = "Lớn (L)", ToppingName = "Xí Muội Mặn Ngọt", Quantity = 2, SubTotal = 72000 }
+                    }
+                },
+                new BarOrderHistoryItem
+                {
+                    OrderId = "Bàn 07",
+                    CustomerName = "Trần Quốc Hùng",
+                    CustomerPhone = "0944 112 233",
+                    OrderType = OrderType.Pickup,
+                    OrderTypeLabel = "Tại bàn",
+                    OrderTime = DateTime.Now.AddMinutes(-70),
+                    ClosedAt = DateTime.Now.AddMinutes(-45),
+                    FinalStatus = BarOnlineOrderStatus.Completed,
+                    TotalAmount = 145000,
+                    DiscountAmount = 0,
+                    FinalAmount = 145000,
+                    PaymentMethod = "card",
+                    ItemCount = 4,
+                    TableOrOrderId = "Bàn 07",
+                    Items = new List<BarHistoryItemDetail>
+                    {
+                        new BarHistoryItemDetail { ProductName = "Cà Phê Đen Đá", SizeName = "Vừa (M)", Quantity = 2, SubTotal = 50000 },
+                        new BarHistoryItemDetail { ProductName = "Phin Sữa Đá", SizeName = "Lớn (L)", Quantity = 1, SubTotal = 45000 },
+                        new BarHistoryItemDetail { ProductName = "Bánh Mỳ Que Gà Xé Phô Mai", SizeName = "Nhỏ (S)", Quantity = 2, SubTotal = 50000 }
+                    }
+                },
+                new BarOrderHistoryItem
+                {
+                    OrderId = "#ORD-1022",
+                    CustomerName = "Hoàng Thị Thu",
+                    CustomerPhone = "0933 878 900",
+                    OrderType = OrderType.Pickup,
+                    OrderTypeLabel = "Đến lấy / Mang đi",
+                    OrderTime = DateTime.Now.AddMinutes(-30),
+                    ClosedAt = DateTime.Now.AddMinutes(-18),
+                    FinalStatus = BarOnlineOrderStatus.Cancelled,
+                    TotalAmount = 49000,
+                    DiscountAmount = 0,
+                    FinalAmount = 49000,
+                    PaymentMethod = "",
+                    CancelReason = "Bùng đơn, không đến lấy hàng",
+                    ItemCount = 1,
+                    TableOrOrderId = "#ORD-1022",
+                    Items = new List<BarHistoryItemDetail>
+                    {
+                        new BarHistoryItemDetail { ProductName = "Trà Sữa Oolong Nướng", SizeName = "Vừa (M)", ToppingName = "Trân Châu Đen", Quantity = 1, SubTotal = 49000 }
+                    }
+                }
+            };
+            // Sắp xếp mới nhất trước
+            OrderHistory = OrderHistory.OrderByDescending(h => h.ClosedAt).ToList();
         }
     }
 }

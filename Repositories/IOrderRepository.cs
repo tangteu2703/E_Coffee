@@ -10,5 +10,8 @@ namespace E_Coffee.Repositories
         void UpdateOnlineOrderStatus(string orderId, BarOnlineOrderStatus status);
         void AddOnlineOrder(BarOnlineOrderItem order);
         void SaveOrUpdateOnlineOrder(BarOnlineOrderItem order);
+        bool CancelOnlineOrder(string orderId, string reason);
+        List<BarOrderHistoryItem> GetOrderHistory();
+        void AddToHistory(BarOrderHistoryItem historyItem);
     }
 }

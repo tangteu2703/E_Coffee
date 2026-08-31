@@ -171,10 +171,82 @@ namespace E_Coffee.Services
 
             if (request.TargetType == "table")
             {
+                // Ghi lịch sử trước khi reset bàn
+                var table = _tableRepo.GetAll().FirstOrDefault(t =>
+                    t.TableName.Equals(request.TargetId, StringComparison.OrdinalIgnoreCase));
+                if (table != null && table.Items.Count > 0)
+                {
+                    var payMethod = request.PaymentMethod ?? "cash";
+                    var payLabel = payMethod == "qr" ? "Chuyển khoản QR"
+                                 : payMethod == "card" ? "Thẻ"
+                                 : "Tiền mặt";
+                    _orderRepo.AddToHistory(new BarOrderHistoryItem
+                    {
+                        OrderId = table.TableName,
+                        CustomerName = !string.IsNullOrWhiteSpace(table.CustomerName) ? table.CustomerName : "Khách vãng lai",
+                        CustomerPhone = table.CustomerPhone ?? "",
+                        OrderType = OrderType.Pickup,
+                        OrderTypeLabel = "Tại bàn",
+                        OrderTime = table.OccupiedTime ?? DateTime.Now.AddMinutes(-30),
+                        ClosedAt = DateTime.Now,
+                        FinalStatus = BarOnlineOrderStatus.Completed,
+                        TotalAmount = request.TotalAmount,
+                        DiscountAmount = request.DiscountAmount,
+                        FinalAmount = request.FinalAmount > 0 ? request.FinalAmount : request.TotalAmount - request.DiscountAmount,
+                        PaymentMethod = payLabel,
+                        ItemCount = table.ItemCount,
+                        TableOrOrderId = table.TableName,
+                        Items = table.Items.Select(i => new BarHistoryItemDetail
+                        {
+                            ProductName = i.ProductName,
+                            SizeName = i.SelectedSize?.Name ?? "",
+                            ToppingName = i.SelectedToppings?.FirstOrDefault()?.Name ?? "",
+                            Quantity = i.Quantity,
+                            SubTotal = i.SubTotal
+                        }).ToList()
+                    });
+                }
                 _tableRepo.ResetTable(request.TargetId);
             }
             else if (request.TargetType == "online" || request.TargetType == "pickup" || request.TargetType == "delivery")
             {
+                // Ghi lịch sử cho đơn online
+                var order = _orderRepo.GetOnlineOrderById(request.TargetId);
+                if (order != null)
+                {
+                    var payMethod = request.PaymentMethod ?? "cash";
+                    var payLabel = payMethod == "qr" ? "Chuyển khoản QR"
+                                 : payMethod == "card" ? "Thẻ"
+                                 : "Tiền mặt";
+                    var orderTypeLabel = order.OrderType == OrderType.Delivery ? "Giao tận nơi"
+                                       : order.OrderType == OrderType.Pickup ? "Đến lấy / Mang đi"
+                                       : "Tại quầy";
+                    _orderRepo.AddToHistory(new BarOrderHistoryItem
+                    {
+                        OrderId = order.OrderId,
+                        CustomerName = order.CustomerName,
+                        CustomerPhone = order.CustomerPhone,
+                        OrderType = order.OrderType,
+                        OrderTypeLabel = orderTypeLabel,
+                        OrderTime = order.OrderTime,
+                        ClosedAt = DateTime.Now,
+                        FinalStatus = BarOnlineOrderStatus.Completed,
+                        TotalAmount = request.TotalAmount > 0 ? request.TotalAmount : order.TotalAmount,
+                        DiscountAmount = request.DiscountAmount,
+                        FinalAmount = request.FinalAmount > 0 ? request.FinalAmount : order.TotalAmount - request.DiscountAmount,
+                        PaymentMethod = payLabel,
+                        ItemCount = order.ItemCount,
+                        TableOrOrderId = order.OrderId,
+                        Items = order.Items.Select(i => new BarHistoryItemDetail
+                        {
+                            ProductName = i.ProductName,
+                            SizeName = i.SelectedSize?.Name ?? "",
+                            ToppingName = i.SelectedToppings?.FirstOrDefault()?.Name ?? "",
+                            Quantity = i.Quantity,
+                            SubTotal = i.SubTotal
+                        }).ToList()
+                    });
+                }
                 _orderRepo.UpdateOnlineOrderStatus(request.TargetId, BarOnlineOrderStatus.Completed);
             }
 
@@ -281,6 +353,18 @@ namespace E_Coffee.Services
         {
             _orderRepo.UpdateOnlineOrderStatus(orderId, status);
             return true;
+        }
+
+        public List<BarOrderHistoryItem> GetOrderHistory()
+        {
+            return _orderRepo.GetOrderHistory();
+        }
+
+        public bool CancelOnlineOrder(string orderId, string reason)
+        {
+            if (string.IsNullOrWhiteSpace(orderId))
+                return false;
+            return _orderRepo.CancelOnlineOrder(orderId, reason?.Trim() ?? string.Empty);
         }
 
         public CustomerLookupResult FindCustomerByPhone(string phone)

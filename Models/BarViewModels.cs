@@ -48,7 +48,8 @@ namespace E_Coffee.Models
         Pending = 1,   // Mới / Chờ nhận
         Preparing = 2, // Đang pha chế
         Ready = 3,     // Chờ giao / Chờ lấy
-        Completed = 4  // Hoàn tất
+        Completed = 4, // Hoàn tất
+        Cancelled = 5  // Đã hủy
     }
 
     public class BarOnlineOrderItem
@@ -62,9 +63,48 @@ namespace E_Coffee.Models
         public BarOnlineOrderStatus Status { get; set; } = BarOnlineOrderStatus.Pending;
         public List<CartItem> Items { get; set; } = new();
         public string CustomerNote { get; set; } = string.Empty;
+        public string CancelReason { get; set; } = string.Empty;
+        public DateTime? PaidAt { get; set; }
 
         public decimal TotalAmount => Items.Sum(i => i.SubTotal);
         public int ItemCount => Items.Sum(i => i.Quantity);
+    }
+
+    /// <summary>Chi tiết một dòng món trong lịch sử đơn hàng</summary>
+    public class BarHistoryItemDetail
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public string SizeName { get; set; } = string.Empty;
+        public string ToppingName { get; set; } = string.Empty; // Tên topping đầu tiên (nếu có)
+        public int Quantity { get; set; } = 1;
+        public decimal SubTotal { get; set; }
+    }
+
+    /// <summary>Đơn đã hoàn tất hoặc đã hủy – dùng cho tab Lịch sử thanh toán</summary>
+    public class BarOrderHistoryItem
+    {
+        public string OrderId { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerPhone { get; set; } = string.Empty;
+        public OrderType OrderType { get; set; } = OrderType.Pickup;
+        public string OrderTypeLabel { get; set; } = string.Empty;
+        public DateTime OrderTime { get; set; } = DateTime.Now;
+        public DateTime ClosedAt { get; set; } = DateTime.Now;
+        public BarOnlineOrderStatus FinalStatus { get; set; } = BarOnlineOrderStatus.Completed;
+        public decimal TotalAmount { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal FinalAmount { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string CancelReason { get; set; } = string.Empty;
+        public int ItemCount { get; set; }
+        public string TableOrOrderId { get; set; } = string.Empty; // Bàn X hoặc #ORD-xxx
+        public List<BarHistoryItemDetail> Items { get; set; } = new();
+    }
+
+    public class BarCancelOrderRequest
+    {
+        public string OrderId { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class BarPageViewModel
@@ -73,9 +113,11 @@ namespace E_Coffee.Models
         public List<BarOnlineOrderItem> OnlineOrders { get; set; } = new();
         public List<Category> Categories { get; set; } = new();
         public List<Product> Products { get; set; } = new();
+        public List<BarOrderHistoryItem> OrderHistory { get; set; } = new();
         public int EmptyTableCount => Tables.Count(t => t.Status == BarTableStatus.Empty);
         public int OccupiedTableCount => Tables.Count(t => t.Status == BarTableStatus.Occupied);
         public int PendingOnlineOrderCount => OnlineOrders.Count(o => o.Status == BarOnlineOrderStatus.Pending || o.Status == BarOnlineOrderStatus.Preparing);
+        public int TodayHistoryCount => OrderHistory.Count;
     }
 
     public class BarCheckoutRequest

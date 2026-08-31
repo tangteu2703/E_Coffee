@@ -4,6 +4,8 @@
     Layout = "_BarLayout";
 }
 
+
+
 <div class="pos-container">
     
     <!-- Sub Header Summary Banner -->
@@ -143,7 +145,7 @@
                             var statusName = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "Chờ pha chế" : "Đang pha chế";
                             var canCancel = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending || order.Status == E_Coffee.Models.BarOnlineOrderStatus.Preparing;
 
-                            <div class="online-item-card" data-order-id="@order.OrderId" onclick="ECoffeeBar.selectOnlineOrder('@order.OrderId')">
+                            <div class="online-item-card" data-order-id="@order.OrderId" data-status="@order.Status" onclick="ECoffeeBar.selectOnlineOrder('@order.OrderId')">
                                 <div class="d-flex align-items-center justify-content-between mb-1">
                                     <span class="fw-extrabold text-dark" style="font-size: 0.95rem;">@order.OrderId</span>
                                     <div class="d-flex gap-1">
@@ -159,10 +161,20 @@
                                 </div>
                                 @if (canCancel)
                                 {
-                                    <div class="mt-2 pt-1 border-top">
-                                        <button class="btn btn-sm btn-outline-danger w-100" style="font-size: 0.73rem; padding: 3px 8px;" onclick="ECoffeeBar.cancelOnlineOrder('@order.OrderId'); event.stopPropagation();">
-                                            <i class="bi bi-x-circle me-1"></i>Hủy Đơn
-                                        </button>
+                                    <div class="row g-1 mt-2 pt-1 border-top">
+                                        @if (order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending)
+                                        {
+                                            <div class="col-6">
+                                                <button class="btn btn-sm btn-success w-100 btn-accept-order" style="font-size: 0.73rem; padding: 3px 8px;" onclick="BarNotifications.acceptOrder('@order.OrderId'); event.stopPropagation();">
+                                                    <i class="bi bi-check-circle me-1"></i>Nhận Đơn
+                                                </button>
+                                            </div>
+                                        }
+                                        <div class="col-@(order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "6" : "12")">
+                                            <button class="btn btn-sm btn-outline-danger w-100" style="font-size: 0.73rem; padding: 3px 8px;" onclick="ECoffeeBar.cancelOnlineOrder('@order.OrderId'); event.stopPropagation();">
+                                                <i class="bi bi-x-circle me-1"></i>Hủy Đơn
+                                            </button>
+                                        </div>
                                     </div>
                                 }
                             </div>
@@ -200,7 +212,7 @@
                             var statusName = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "Chờ pha chế" : "Đang pha chế";
                             var canCancel = order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending || order.Status == E_Coffee.Models.BarOnlineOrderStatus.Preparing;
 
-                            <div class="online-item-card" data-order-id="@order.OrderId" onclick="ECoffeeBar.selectOnlineOrder('@order.OrderId')">
+                            <div class="online-item-card" data-order-id="@order.OrderId" data-status="@order.Status" onclick="ECoffeeBar.selectOnlineOrder('@order.OrderId')">
                                 <div class="d-flex align-items-center justify-content-between mb-1">
                                     <span class="fw-extrabold text-dark" style="font-size: 0.95rem;">@order.OrderId</span>
                                     <div class="d-flex gap-1">
@@ -216,10 +228,20 @@
                                 </div>
                                 @if (canCancel)
                                 {
-                                    <div class="mt-2 pt-1 border-top">
-                                        <button class="btn btn-sm btn-outline-danger w-100" style="font-size: 0.73rem; padding: 3px 8px;" onclick="ECoffeeBar.cancelOnlineOrder('@order.OrderId'); event.stopPropagation();">
-                                            <i class="bi bi-x-circle me-1"></i>Hủy Đơn
-                                        </button>
+                                    <div class="row g-1 mt-2 pt-1 border-top">
+                                        @if (order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending)
+                                        {
+                                            <div class="col-6">
+                                                <button class="btn btn-sm btn-success w-100 btn-accept-order" style="font-size: 0.73rem; padding: 3px 8px;" onclick="BarNotifications.acceptOrder('@order.OrderId'); event.stopPropagation();">
+                                                    <i class="bi bi-check-circle me-1"></i>Nhận Đơn
+                                                </button>
+                                            </div>
+                                        }
+                                        <div class="col-@(order.Status == E_Coffee.Models.BarOnlineOrderStatus.Pending ? "6" : "12")">
+                                            <button class="btn btn-sm btn-outline-danger w-100" style="font-size: 0.73rem; padding: 3px 8px;" onclick="ECoffeeBar.cancelOnlineOrder('@order.OrderId'); event.stopPropagation();">
+                                                <i class="bi bi-x-circle me-1"></i>Hủy Đơn
+                                            </button>
+                                        </div>
                                     </div>
                                 }
                             </div>
@@ -499,5 +521,28 @@
 <partial name="_SaveOrderModal" />
 
 @section Scripts {
+    <script src="~/js/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/bar.js" asp-append-version="true"></script>
+    <script src="~/js/bar-notifications.js" asp-append-version="true"></script>
+    <style>
+        /* Pulse animation cho card đơn mới đến */
+        @@keyframes barNotifPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.6); }
+            50%  { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        .bar-notif-new-pulse {
+            animation: barNotifPulse 1.2s ease-in-out 3;
+            border: 1.5px solid #dc3545 !important;
+        }
+        /* Blink animation cho tab button khi có đơn mới */
+        @@keyframes barTabBlink {
+            0%, 100% { background-color: transparent; }
+            50%       { background-color: rgba(220, 53, 69, 0.15); }
+        }
+        .bar-notif-tab-blink {
+            animation: barTabBlink 0.8s ease-in-out 6;
+        }
+
+    </style>
 }

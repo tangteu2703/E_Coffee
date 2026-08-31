@@ -70,6 +70,65 @@ namespace E_Coffee.Services
             return _orderRepo.GetOnlineOrders();
         }
 
+        public BarOnlineOrderItem PlaceOnlineOrder(OnlinePlaceOrderRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            // Xác định OrderType
+            var orderType = request.OrderType switch
+            {
+                "Delivery" => OrderType.Delivery,
+                "AtTable"  => OrderType.AtTable,
+                _          => OrderType.Pickup
+            };
+
+            // Build CartItem list từ request
+            var cartItems = (request.Items ?? new()).Select(i => new CartItem
+            {
+                ProductId   = i.ProductId,
+                ProductName = i.ProductName,
+                Quantity    = i.Quantity,
+                UnitBasePrice = i.UnitBasePrice,
+                SelectedSize = new SizeOption
+                {
+                    Code       = string.IsNullOrWhiteSpace(i.SizeName) ? "S" : i.SizeName,
+                    Name       = i.SizeName,
+                    ExtraPrice = i.SizeExtraPrice
+                },
+                SugarLevel = i.SugarLevel,
+                IceLevel   = i.IceLevel,
+                SelectedToppings = (i.SelectedToppings ?? new()).Select(t => new ToppingOption
+                {
+                    Id    = t.Id,
+                    Name  = t.Name,
+                    Price = t.Price
+                }).ToList(),
+                SpecialNote = i.SpecialNote
+            }).ToList();
+
+            // Tạo mã đơn duy nhất dạng ECO-xxxxxx
+            var orderId = $"ECO-{DateTime.Now:MMdd}{new Random().Next(100, 999)}";
+
+            var order = new BarOnlineOrderItem
+            {
+                OrderId         = orderId,
+                CustomerName    = request.CustomerName,
+                CustomerPhone   = request.CustomerPhone,
+                OrderType       = orderType,
+                DeliveryAddress = orderType == OrderType.Delivery
+                                    ? request.DeliveryAddress
+                                    : (!string.IsNullOrWhiteSpace(request.TableNumber) ? $"Bàn: {request.TableNumber}" : "Tại quầy"),
+                CustomerNote    = request.CustomerNote,
+                OrderTime       = DateTime.Now,
+                Status          = BarOnlineOrderStatus.Pending,
+                Items           = cartItems
+            };
+
+            _orderRepo.AddOnlineOrder(order);
+            return order;
+        }
+
+
         public List<Voucher> GetActiveVouchers()
         {
             return _voucherRepo.GetAll();

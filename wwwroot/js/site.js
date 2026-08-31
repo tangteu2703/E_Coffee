@@ -892,12 +892,59 @@ const ECoffee = (function () {
     }
   }
 
-  function submitFinalCheckout(channelText, identifier, countDisplay, rawSubtotal, productDiscount, voucherDiscount, effectiveShippingFee, grandTotal) {
+  async function submitFinalCheckout(channelText, identifier, countDisplay, rawSubtotal, productDiscount, voucherDiscount, effectiveShippingFee, grandTotal) {
+    // === BUILD PAYLOAD cho /Order/PlaceOrder ===
+    const orderPayload = {
+      customerName:    orderMode.customerName,
+      customerPhone:   orderMode.customerPhone,
+      orderType:       orderMode.type,       // 'Delivery' | 'Pickup' | 'AtTable'
+      deliveryAddress: orderMode.address || '',
+      tableNumber:     orderMode.tableNumber || '',
+      customerNote:    '',
+      voucherCode:     appliedVoucher ? appliedVoucher.code : '',
+      discountAmount:  voucherDiscount + productDiscount,
+      shippingFee:     effectiveShippingFee,
+      items: cart.map(item => ({
+        productId:      item.productId || 0,
+        productName:    item.productName,
+        sizeName:       item.selectedSize ? item.selectedSize.code : 'S',
+        unitBasePrice:  item.originalUnitPrice || item.unitPrice,
+        sizeExtraPrice: item.selectedSize ? (item.selectedSize.extraPrice || 0) : 0,
+        quantity:       item.quantity,
+        sugarLevel:     item.sugarLevel || '100%',
+        iceLevel:       item.iceLevel || '100%',
+        selectedToppings: (item.selectedToppings || []).map(t => ({
+          id:    t.id || 0,
+          name:  t.name,
+          price: t.price || 0
+        })),
+        specialNote: item.specialNote || ''
+      }))
+    };
+
+    // === POST ĐƠN LÊN SERVER ===
+    let serverOrderId = `ECO-${Date.now().toString().slice(-6)}`;
+    try {
+      const resp = await fetch('/Order/PlaceOrder', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(orderPayload)
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.orderId) serverOrderId = data.orderId;
+      }
+    } catch (err) {
+      console.warn('[ECoffee] PlaceOrder API lỗi (offline?):', err);
+      // Tiếp tục gracefully — đơn đã không lên server nhưng không block UX khách
+    }
+
+    // === HIỆN POPUP THÀNH CÔNG ===
     const receiptSuccessHtml = `
       <div class="pos-receipt-card text-start">
         <div class="pos-receipt-header">
           <span class="badge bg-success px-3 py-1 mb-1 shadow-sm" style="font-size: 0.82rem;">Đã chuyển tới quầy Bar Barista</span>
-          <div class="pos-receipt-subtitle mt-1">Mã đơn: #ECO-${Date.now().toString().slice(-6)}</div>
+          <div class="pos-receipt-subtitle mt-1">Mã đơn: ${serverOrderId}</div>
         </div>
 
         <div class="receipt-info-group">
@@ -966,7 +1013,7 @@ const ECoffee = (function () {
         }
       });
     } else {
-      alert(`🎉 ĐẶT HÀNG THÀNH CÔNG!\n--------------------------------\nKênh: ${channelText}\nĐịnh danh: ${identifier}\nKhách hàng: ${orderMode.customerName} - ${orderMode.customerPhone}\nSố lượng: ${countDisplay}\nTạm tính: ${formatVND(rawSubtotal)}\nTổng thanh toán: ${formatVND(grandTotal)}\n\nĐơn hàng đã được chuyển tới quầy Bar barista! Cảm ơn Quý khách!`);
+      alert(`🎉 ĐẶT HÀNG THÀNH CÔNG!\n--------------------------------\nMã đơn: ${serverOrderId}\nKênh: ${channelText}\nĐịnh danh: ${identifier}\nKhách hàng: ${orderMode.customerName} - ${orderMode.customerPhone}\nSố lượng: ${countDisplay}\nTổng thanh toán: ${formatVND(grandTotal)}\n\nĐơn hàng đã được chuyển tới quầy Bar barista! Cảm ơn Quý khách!`);
     }
 
     cart = [];

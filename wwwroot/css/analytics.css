@@ -62,7 +62,9 @@ body.pos-layout-body {
     align-items: center;
     gap: 10px;
     flex-wrap: nowrap;
-    overflow-x: auto;
+    overflow: visible;   /* phải visible để dropdown thoát ra ngoài */
+    position: relative;
+    z-index: 100;        /* trên KPI strip để dropdown không bị đè */
     box-shadow: var(--an-shadow-sm);
 }
 
@@ -459,6 +461,14 @@ body.pos-layout-body {
     border-bottom: 1px solid var(--an-card-border);
     box-shadow: var(--an-shadow-sm);
     padding: 12px 14px;
+    position: relative;
+    z-index: 1; /* thấp hơn topbar (100) để dropdown không bị đè */
+}
+
+/* Branch Switcher dropdown — phải vượt qua tất cả layer */
+#anBranchSwitcher .dropdown-menu {
+    z-index: 9999 !important;
+    margin-top: 6px;
 }
 
 .an-kpi-row .an-kpi {

@@ -17,6 +17,14 @@ namespace E_Coffee.Models
 
         /// <summary>"all" | "dine_in" | "delivery" | "pickup"</summary>
         public string Channel  { get; set; } = "all";
+
+        /// <summary>
+        /// null = Tổng hợp tất cả trụ sở (Admin default).
+        /// Có giá trị = lọc 1 trụ sở cụ thể.
+        /// Lưu ý: Client không gửi field này — server sẽ tự điền từ Session.
+        /// Để mở rộng sau này có thể cho Admin chọn override qua request.
+        /// </summary>
+        public int? BranchId { get; set; } = null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -151,6 +159,14 @@ namespace E_Coffee.Models
         public string FilterToDate   { get; set; } = string.Empty;
         public string FilterGroupBy  { get; set; } = "day";
         public string FilterChannel  { get; set; } = "all";
+
+        // === Branch Context ===
+        /// <summary>null = Admin đang xem tổng hợp tất cả trụ sở.</summary>
+        public int? ActiveBranchId   { get; set; } = null;
+        public string ActiveBranchName { get; set; } = "Tổng hợp tất cả trụ sở";
+        /// <summary>Danh sách trụ sở cho dropdown Admin. Rỗng nếu là Staff/Manager.</summary>
+        public List<Branch> AvailableBranches { get; set; } = new();
+        public bool IsAdminView { get; set; } = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -159,12 +175,14 @@ namespace E_Coffee.Models
 
     public class AnalyticsApiResponse
     {
-        public bool                      Success        { get; set; } = true;
-        public string                    Message        { get; set; } = string.Empty;
-        public RevenueKpiDto?            Kpi            { get; set; }
-        public RevenueChartDataDto?      ChartData      { get; set; }
-        public List<CategoryRevenueDto>? CategoryData   { get; set; }
-        public List<TopSellingProductDto>? TopProducts  { get; set; }
-        public List<RevenueDetailRowDto>?  DetailRows   { get; set; }
+        public bool                       Success        { get; set; } = true;
+        public string                     Message        { get; set; } = string.Empty;
+        public RevenueKpiDto?             Kpi            { get; set; }
+        public RevenueChartDataDto?       ChartData      { get; set; }
+        public List<CategoryRevenueDto>?  CategoryData   { get; set; }
+        public List<TopSellingProductDto>? TopProducts   { get; set; }
+        public List<RevenueDetailRowDto>?  DetailRows    { get; set; }
+        /// <summary>Tên trụ sở đang xem — JS sẽ cập nhật breadcrumb khi AJAX refresh.</summary>
+        public string ActiveBranchName { get; set; } = string.Empty;
     }
 }

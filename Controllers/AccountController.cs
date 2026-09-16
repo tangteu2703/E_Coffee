@@ -77,6 +77,7 @@ namespace E_Coffee.Controllers
                 new Claim("FullName", user.FullName),
                 new Claim("RoleDisplayName", user.RoleDisplayName),
                 new Claim("Branch", user.Branch),
+                new Claim("BranchId", user.BranchId?.ToString() ?? ""),  // "" = Admin toàn hệ thống
                 new Claim("Avatar", user.Avatar),
                 new Claim("Phone", user.Phone)
             };
@@ -97,6 +98,12 @@ namespace E_Coffee.Controllers
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 claimsPrincipal,
                 authProperties);
+
+            // Ghi ActiveBranchId vào Session (null = Admin xem tất cả)
+            if (user.BranchId.HasValue)
+                HttpContext.Session.SetInt32("ActiveBranchId", user.BranchId.Value);
+            else
+                HttpContext.Session.Remove("ActiveBranchId"); // Admin: không giới hạn
 
             // Kiểm tra returnUrl hợp lệ để chuyển hướng
             if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))

@@ -13,10 +13,11 @@
     var kpiDataJson      = JsonSerializer.Serialize(Model.Kpi,              jsonOpts);
 
     var initialJson = JsonSerializer.Serialize(new {
-        fromDate = Model.FilterFromDate,
-        toDate   = Model.FilterToDate,
-        groupBy  = Model.FilterGroupBy,
-        channel  = Model.FilterChannel
+        fromDate       = Model.FilterFromDate,
+        toDate         = Model.FilterToDate,
+        groupBy        = Model.FilterGroupBy,
+        channel        = Model.FilterChannel,
+        activeBranchName = Model.ActiveBranchName
     }, jsonOpts);
 
     Func<decimal, string> fmtM = v => v >= 1_000_000
@@ -105,6 +106,58 @@
                 <i class="bi bi-file-earmark-excel"></i>
             </button>
         </div>
+
+        @* Branch Switcher – Admin: dropdown | Manager: badge *@
+        @if (Model.IsAdminView)
+        {
+            <div class="dropdown ms-1" id="anBranchSwitcher">
+                <button class="an-btn @(Model.ActiveBranchId.HasValue ? "an-btn-primary" : "an-btn-outline") dropdown-toggle d-flex align-items-center gap-1"
+                        type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                        style="font-size: 0.78rem; border-radius: 50px; padding: 0.3rem 0.9rem;">
+                    <i class="bi bi-shop"></i>
+                    <span id="anBranchLabel">@Model.ActiveBranchName</span>
+                    @if (Model.ActiveBranchId.HasValue)
+                    {
+                        <span class="badge bg-white" style="color:#e11d48; font-size:0.58rem;">Filter</span>
+                    }
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width:250px; border-radius:12px; overflow:hidden;">
+                    <li class="px-3 py-1" style="font-size:0.72rem; color:#999; font-weight:600; letter-spacing:.05em;">PHẠM VI BÁO CÁO</li>
+                    <li>
+                        <form method="post" action="/Analytics/SwitchBranch">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="branchId" value="">
+                            <button type="submit" class="dropdown-item fw-semibold py-2 @(!Model.ActiveBranchId.HasValue ? "active" : "")" style="font-size:0.82rem;">
+                                <i class="bi bi-globe2 me-2 text-secondary"></i>Tổng hợp tất cả trụ sở
+                            </button>
+                        </form>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    @foreach (var branch in Model.AvailableBranches)
+                    {
+                        <li>
+                            <form method="post" action="/Analytics/SwitchBranch">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="branchId" value="@branch.Id">
+                                <button type="submit" class="dropdown-item py-2 @(Model.ActiveBranchId == branch.Id ? "active" : "")" style="font-size:0.8rem;">
+                                    <i class="bi bi-geo-alt-fill me-2 @(Model.ActiveBranchId == branch.Id ? "text-white" : "text-danger")"></i>
+                                    @branch.ShortName
+                                    @if (Model.ActiveBranchId == branch.Id) { <i class="bi bi-check-lg ms-auto"></i> }
+                                </button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+        else
+        {
+            @* Manager: badge cố định — không có dropdown *@
+            <span class="an-btn d-flex align-items-center gap-1 ms-1"
+                  style="background: linear-gradient(135deg,#C8102E,#8B1A1A); color:#fff; border-radius:50px; padding:0.3rem 0.9rem; font-size:0.78rem; cursor:default; border:none;">
+                <i class="bi bi-shop"></i> @Model.ActiveBranchName
+            </span>
+        }
     </div>
 
     @* ── KPI STRIP – 6 card hàng ngang ────────────────────────────────────── *@

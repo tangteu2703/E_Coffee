@@ -22,11 +22,16 @@ namespace E_Coffee.Data
         public List<BarOrderHistoryItem> OrderHistory { get; set; } = new();
         public List<ProductPriceHistory> PriceHistories { get; set; } = new();
         public List<AppUser> Users { get; set; } = new();
+        public List<Branch> Branches { get; set; } = new();
+        /// <summary>Giá bán override theo trụ sở. Key: (BranchId, ProductId)</summary>
+        public List<BranchProductPrice> BranchProductPrices { get; set; } = new();
 
         public MockDbContext()
         {
             SeedData();
             SeedOrderHistory();
+            SeedBranches();
+            SeedBranchData(); // Giá & voucher theo trụ sở — phải sau SeedData và SeedBranches
         }
 
         private void SeedData()
@@ -268,37 +273,63 @@ namespace E_Coffee.Data
                     Description = "Ưu đãi tri ân khách hàng, giảm 10% cho mọi đơn hàng",
                     DiscountType = VoucherDiscountType.Percent, DiscountValue = 10, MinOrderAmount = 0, MaxDiscountAmount = 50000,
                     StartDate = new DateTime(2026, 8, 1), EndDate = new DateTime(2026, 9, 30),
-                    IsActive = true, UsageLimit = 200, UsedCount = 47 },
+                    IsActive = true, UsageLimit = 200, UsedCount = 47,
+                    BranchId = null },   // Toàn hệ thống
                 new Voucher { Id = 2, Code = "HE2026", Name = "Giảm 20.000đ chào hè",
                     Description = "Ưu đãi chào hè 2026, giảm 20k cho hóa đơn từ 40k",
                     DiscountType = VoucherDiscountType.FixedAmount, DiscountValue = 20000, MinOrderAmount = 40000,
                     StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 8, 31),
-                    IsActive = true, UsageLimit = 100, UsedCount = 83 },
+                    IsActive = true, UsageLimit = 100, UsedCount = 83,
+                    BranchId = null },   // Toàn hệ thống
                 new Voucher { Id = 3, Code = "FREESHIP", Name = "Trợ giá ship 15.000đ",
                     Description = "Hỗ trợ 15k phí giao hàng tận nơi cho đơn online từ 30k",
                     DiscountType = VoucherDiscountType.FixedAmount, DiscountValue = 15000, MinOrderAmount = 30000,
                     StartDate = new DateTime(2026, 8, 15), EndDate = new DateTime(2026, 10, 15),
-                    IsActive = true, UsageLimit = 500, UsedCount = 129 },
+                    IsActive = true, UsageLimit = 500, UsedCount = 129,
+                    BranchId = null },   // Toàn hệ thống
                 new Voucher { Id = 4, Code = "HOANGGIA50K", Name = "Giảm 50.000đ đơn tiệc",
                     Description = "Ưu đãi đơn nhóm / tiệc từ 200k",
                     DiscountType = VoucherDiscountType.FixedAmount, DiscountValue = 50000, MinOrderAmount = 200000,
                     StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 12, 31),
-                    IsActive = true, UsageLimit = 50, UsedCount = 12 },
+                    IsActive = true, UsageLimit = 50, UsedCount = 12,
+                    BranchId = null },   // Toàn hệ thống
                 new Voucher { Id = 5, Code = "VIPMEMBER", Name = "Giảm 15% khách VIP",
                     Description = "Đặc quyền thẻ thành viên VIP – không giới hạn đơn tối thiểu",
                     DiscountType = VoucherDiscountType.Percent, DiscountValue = 15, MinOrderAmount = 50000, MaxDiscountAmount = 100000,
                     StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 12, 31),
-                    IsActive = true, UsageLimit = null, UsedCount = 68 },
+                    IsActive = true, UsageLimit = null, UsedCount = 68,
+                    BranchId = null },   // Toàn hệ thống
                 new Voucher { Id = 6, Code = "KHAIHANG", Name = "Khai trương -30%",
                     Description = "Voucher khai trương đã kết thúc",
                     DiscountType = VoucherDiscountType.Percent, DiscountValue = 30, MinOrderAmount = 0,
                     StartDate = new DateTime(2026, 5, 1), EndDate = new DateTime(2026, 5, 31),
-                    IsActive = false, UsageLimit = 300, UsedCount = 298 },
+                    IsActive = false, UsageLimit = 300, UsedCount = 298,
+                    BranchId = null },   // Toàn hệ thống
                 new Voucher { Id = 7, Code = "TUUUDAI9X", Name = "Ưu đãi 9x - Sắp ra mắt",
                     Description = "Voucher đặc biệt dành cho thế hệ 9x, sắp diễn ra",
                     DiscountType = VoucherDiscountType.Percent, DiscountValue = 20, MinOrderAmount = 60000, MaxDiscountAmount = 80000,
                     StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 30),
-                    IsActive = true, UsageLimit = 150, UsedCount = 0 }
+                    IsActive = true, UsageLimit = 150, UsedCount = 0,
+                    BranchId = null },   // Toàn hệ thống
+                // --- Voucher theo trụ sở (Manager tạo) ---
+                new Voucher { Id = 8, Code = "PCK_WELCOME", Name = "Chào mừng khách mới - Phùng Chí Kiên",
+                    Description = "Giảm 15% cho lần đầu ghé thăm trụ sở Phùng Chí Kiên",
+                    DiscountType = VoucherDiscountType.Percent, DiscountValue = 15, MinOrderAmount = 30000, MaxDiscountAmount = 40000,
+                    StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 12, 31),
+                    IsActive = true, UsageLimit = 100, UsedCount = 22,
+                    BranchId = 1 },   // Chỉ trụ sở Phùng Chí Kiên
+                new Voucher { Id = 9, Code = "Q1_TGIF", Name = "Thứ 6 vui vẻ - Vincom Q.1",
+                    Description = "Giảm 10k mỗi thứ 6 tại Vincom Q.1",
+                    DiscountType = VoucherDiscountType.FixedAmount, DiscountValue = 10000, MinOrderAmount = 50000,
+                    StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 12, 31),
+                    IsActive = true, UsageLimit = 200, UsedCount = 45,
+                    BranchId = 4 },   // Chỉ trụ sở Vincom Q.1
+                new Voucher { Id = 10, Code = "Q1_AFTERNOON", Name = "Chiều tà - giảm 20%",
+                    Description = "Áp dụng từ 14:00-16:00 tại Vincom Q.1",
+                    DiscountType = VoucherDiscountType.Percent, DiscountValue = 20, MinOrderAmount = 0, MaxDiscountAmount = 30000,
+                    StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 11, 30),
+                    IsActive = true, UsageLimit = null, UsedCount = 87,
+                    BranchId = 4 }   // Chỉ trụ sở Vincom Q.1
             };
 
             // 5.1 Seed Price Histories (Lịch sử điều chỉnh giá vốn & giá bán)
@@ -426,7 +457,58 @@ namespace E_Coffee.Data
                     CustomerName = seedCustName,
                     CustomerPhone = seedCustPhone,
                     OccupiedTime = occupiedTime,
-                    Items = items
+                    Items = items,
+                    // Mặc định 12 bàn này thuộc trụ sở 1 (Phùng Chí Kiên - Hà Nội)
+                    BranchId = 1,
+                    BranchName = "Phùng Chí Kiên (Hà Nội)"
+                });
+            }
+
+            // Seed bàn cho trụ sở 4 (Vincom Q.1 - TP.HCM)
+            for (int i = 1; i <= 6; i++)
+            {
+                var tableNumber = i < 10 ? $"Bàn 0{i}" : $"Bàn {i}";
+                var zone = i <= 3 ? "Tầng 1 - Trong nhà" : "Teras - Ngoài trời";
+                var status = BarTableStatus.Empty;
+                var items = new List<CartItem>();
+                DateTime? occupiedTime = null;
+                int custCount = 0;
+
+                // Giả lập bàn 03 có khách (Vincom HCM)
+                if (i == 3)
+                {
+                    status = BarTableStatus.Occupied;
+                    occupiedTime = DateTime.Now.AddMinutes(-22);
+                    custCount = 2;
+                    items.Add(new CartItem
+                    {
+                        ProductId = 8,
+                        ProductName = "Trà Sen Vàng (Signature)",
+                        ProductImage = Products.First(p => p.Id == 8).ImageUrl,
+                        SelectedSize = Sizes[1],
+                        SugarLevel = "70%",
+                        IceLevel = "100%",
+                        UnitBasePrice = 39000,
+                        Quantity = 2
+                    });
+                }
+
+                string hcmCustName = i == 3 ? "Thành Long" : "";
+                string hcmCustPhone = i == 3 ? "0933 999 888" : "";
+
+                Tables.Add(new BarTableItem
+                {
+                    TableId = $"HCM-T{i}",
+                    TableName = tableNumber,
+                    Zone = zone,
+                    Status = status,
+                    CustomerCount = custCount,
+                    CustomerName = hcmCustName,
+                    CustomerPhone = hcmCustPhone,
+                    OccupiedTime = occupiedTime,
+                    Items = items,
+                    BranchId = 4,
+                    BranchName = "Vincom Q.1 (TP.HCM)"
                 });
             }
 
@@ -441,6 +523,8 @@ namespace E_Coffee.Data
                 OrderTime = DateTime.Now.AddMinutes(-10),
                 Status = BarOnlineOrderStatus.Pending,
                 CustomerNote = "Ít đá, giao trước 11h30 giúp em",
+                BranchId = 4,   // Vincom Q.1 - TP.HCM
+                BranchName = "Vincom Q.1 (TP.HCM)",
                 Items = new List<CartItem>
                 {
                     new CartItem
@@ -479,6 +563,8 @@ namespace E_Coffee.Data
                 OrderTime = DateTime.Now.AddMinutes(-18),
                 Status = BarOnlineOrderStatus.Preparing,
                 CustomerNote = "Cho nhiều trân châu trắng & xí muội",
+                BranchId = 1,   // Phùng Chí Kiên - Hà Nội
+                BranchName = "Phùng Chí Kiên (Hà Nội)",
                 Items = new List<CartItem>
                 {
                     new CartItem
@@ -506,6 +592,8 @@ namespace E_Coffee.Data
                 OrderTime = DateTime.Now.AddMinutes(-5),
                 Status = BarOnlineOrderStatus.Pending,
                 CustomerNote = "Trà chanh mật ong ấm nóng không đá",
+                BranchId = 1,   // Phùng Chí Kiên - Hà Nội
+                BranchName = "Phùng Chí Kiên (Hà Nội)",
                 Items = new List<CartItem>
                 {
                     new CartItem
@@ -529,13 +617,14 @@ namespace E_Coffee.Data
                 {
                     Id = 1,
                     Username = "admin",
-                    Password = "123", // Cho phép đăng nhập bằng 123 hoặc 123456 hoặc admin123
+                    Password = "123",
                     FullName = "Nguyễn Hoàng Gia",
                     Role = "Admin",
                     RoleDisplayName = "Tổng Quản Trị",
                     Email = "admin@hoanggiacoffee.vn",
                     Phone = "0988 123 456",
-                    Branch = "Hoàng Gia - Trụ sở chính",
+                    Branch = "Hoàng Gia - Tất cả trụ sở",
+                    BranchId = null,   // Admin: xem được hết
                     Avatar = "HG",
                     IsActive = true
                 },
@@ -549,7 +638,8 @@ namespace E_Coffee.Data
                     RoleDisplayName = "Quản Lý Chi Nhánh",
                     Email = "manager@hoanggiacoffee.vn",
                     Phone = "0977 888 999",
-                    Branch = "Hoàng Gia - Chi nhánh Phùng Chí Kiên",
+                    Branch = "Phùng Chí Kiên (Hà Nội)",
+                    BranchId = 1,      // Chỉ xem trụ sở 1
                     Avatar = "TH",
                     IsActive = true
                 },
@@ -563,8 +653,24 @@ namespace E_Coffee.Data
                     RoleDisplayName = "Pha Chế Ca 1",
                     Email = "barista@hoanggiacoffee.vn",
                     Phone = "0912 345 678",
-                    Branch = "Quầy Bar Pha Chế - Ca Sáng",
+                    Branch = "Phùng Chí Kiên (Hà Nội)",
+                    BranchId = 1,      // Chỉ xem trụ sở 1
                     Avatar = "QB",
+                    IsActive = true
+                },
+                new AppUser
+                {
+                    Id = 4,
+                    Username = "barista_hcm",
+                    Password = "123",
+                    FullName = "Phạm Thị Hương",
+                    Role = "Staff",
+                    RoleDisplayName = "Pha Chế Ca 1",
+                    Email = "barista.hcm@hoanggiacoffee.vn",
+                    Phone = "0908 765 432",
+                    Branch = "Vincom Q.1 (TP.HCM)",
+                    BranchId = 4,      // Chỉ xem trụ sở 4 (Vincom Q.1)
+                    Avatar = "PH",
                     IsActive = true
                 }
             };
@@ -710,6 +816,159 @@ namespace E_Coffee.Data
             };
             // Sắp xếp mới nhất trước
             OrderHistory = OrderHistory.OrderByDescending(h => h.ClosedAt).ToList();
+        }
+
+        /// <summary>Seed danh sách trụ sở / chi nhánh Hoàng Gia Coffee với tọa độ GPS</summary>
+        private void SeedBranches()
+        {
+            Branches = new List<Branch>
+            {
+                new Branch
+                {
+                    Id = 1,
+                    Name = "Hoàng Gia Coffee - Trụ sở Phùng Chí Kiên",
+                    ShortName = "Phùng Chí Kiên (Hà Nội)",
+                    Address = "Phùng Chí Kiên, Nghĩa Đô, Cầu Giấy",
+                    District = "Cầu Giấy",
+                    City = "Hà Nội",
+                    Lat = 21.0484,
+                    Lng = 105.7940,
+                    Phone = "024 3869 1234",
+                    OpenHours = "06:30 – 22:30",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 2,
+                    Name = "Hoàng Gia Coffee - Vincom Center Bà Triệu",
+                    ShortName = "Vincom Bà Triệu (Hà Nội)",
+                    Address = "191 Bà Triệu, Hai Bà Trưng",
+                    District = "Hai Bà Trưng",
+                    City = "Hà Nội",
+                    Lat = 21.0121,
+                    Lng = 105.8430,
+                    Phone = "024 3974 5678",
+                    OpenHours = "07:00 – 22:00",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 3,
+                    Name = "Hoàng Gia Coffee - Royal City",
+                    ShortName = "Royal City (Hà Nội)",
+                    Address = "72A Nguyễn Trãi, Thanh Xuân",
+                    District = "Thanh Xuân",
+                    City = "Hà Nội",
+                    Lat = 20.9951,
+                    Lng = 105.8143,
+                    Phone = "024 3556 9012",
+                    OpenHours = "07:00 – 22:00",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 4,
+                    Name = "Hoàng Gia Coffee - Vincom Center Q.1",
+                    ShortName = "Vincom Q.1 (TP.HCM)",
+                    Address = "72 Lê Thánh Tôn, Bến Nghé, Quận 1",
+                    District = "Quận 1",
+                    City = "TP. Hồ Chí Minh",
+                    Lat = 10.7736,
+                    Lng = 106.7030,
+                    Phone = "028 3824 1234",
+                    OpenHours = "07:00 – 22:30",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 5,
+                    Name = "Hoàng Gia Coffee - Landmark 81",
+                    ShortName = "Landmark 81 (TP.HCM)",
+                    Address = "772B Điện Biên Phủ, Bình Thạnh",
+                    District = "Bình Thạnh",
+                    City = "TP. Hồ Chí Minh",
+                    Lat = 10.7950,
+                    Lng = 106.7216,
+                    Phone = "028 7109 5678",
+                    OpenHours = "07:00 – 23:00",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 6,
+                    Name = "Hoàng Gia Coffee - Bitexco Tower",
+                    ShortName = "Bitexco (TP.HCM)",
+                    Address = "2 Hải Triều, Bến Nghé, Quận 1",
+                    District = "Quận 1",
+                    City = "TP. Hồ Chí Minh",
+                    Lat = 10.7716,
+                    Lng = 106.7040,
+                    Phone = "028 3915 6789",
+                    OpenHours = "07:00 – 22:00",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 7,
+                    Name = "Hoàng Gia Coffee - Crescent Mall Q.7",
+                    ShortName = "Crescent Mall Q.7 (TP.HCM)",
+                    Address = "101 Tôn Dật Tiên, Tân Phú, Quận 7",
+                    District = "Quận 7",
+                    City = "TP. Hồ Chí Minh",
+                    Lat = 10.7310,
+                    Lng = 106.7218,
+                    Phone = "028 5416 1234",
+                    OpenHours = "09:00 – 22:00",
+                    IsActive = true
+                },
+                new Branch
+                {
+                    Id = 8,
+                    Name = "Hoàng Gia Coffee - Đà Nẵng Sông Hàn",
+                    ShortName = "Sông Hàn (Đà Nẵng)",
+                    Address = "68 Bạch Đằng, Hải Châu",
+                    District = "Hải Châu",
+                    City = "Đà Nẵng",
+                    Lat = 16.0678,
+                    Lng = 108.2208,
+                    Phone = "0236 3889 1234",
+                    OpenHours = "06:30 – 22:00",
+                    IsActive = true
+                }
+            };
+        }
+
+        /// <summary>
+        /// Seed giá bán theo trụ sở (BranchProductPrice).
+        /// Vincom Q.1 (Id=4) có mặt bằng đắt hơn → giá cao hơn HN 8-12%.
+        /// [TODO-DB] Thay bằng query thật khi có database.
+        /// </summary>
+        private void SeedBranchData()
+        {
+            // Giá override cho Vincom Q.1 (BranchId = 4)
+            // Chỉ override một số sản phẩm tiêu biểu để demo
+            BranchProductPrices = new List<BranchProductPrice>
+            {
+                // Dòng Phin (ProductId 1, 2, 3)
+                new BranchProductPrice { BranchId = 4, ProductId = 1, BasePrice = 32000, PromoPrice = null,
+                    Note = "Mặt bằng Vincom Q.1 cao hơn", UpdatedAt = DateTime.Now.AddDays(-10), UpdatedBy = "barista_hcm" },
+                new BranchProductPrice { BranchId = 4, ProductId = 2, BasePrice = 32000, PromoPrice = null,
+                    Note = "Mặt bằng Vincom Q.1 cao hơn", UpdatedAt = DateTime.Now.AddDays(-10), UpdatedBy = "barista_hcm" },
+                new BranchProductPrice { BranchId = 4, ProductId = 3, BasePrice = 39000, PromoPrice = 35000,
+                    Note = "Có khuyến mãi riêng tháng 9", UpdatedAt = DateTime.Now.AddDays(-3), UpdatedBy = "barista_hcm" },
+                // Signature (ProductId 8)
+                new BranchProductPrice { BranchId = 4, ProductId = 8, BasePrice = 52000, PromoPrice = 45000,
+                    Note = "Giá Signature tại Q.1", UpdatedAt = DateTime.Now.AddDays(-5), UpdatedBy = "barista_hcm" },
+                // Freeze (ProductId 5)
+                new BranchProductPrice { BranchId = 4, ProductId = 5, BasePrice = 55000, PromoPrice = null,
+                    Note = "Nhập matcha cao cấp hơn", UpdatedAt = DateTime.Now.AddDays(-7), UpdatedBy = "barista_hcm" },
+
+                // Giá override cho Vincom Bà Triệu HN (BranchId = 2) — ít hơn
+                new BranchProductPrice { BranchId = 2, ProductId = 1, BasePrice = 30000, PromoPrice = null,
+                    Note = "Giá Vincom Bà Triệu", UpdatedAt = DateTime.Now.AddDays(-20), UpdatedBy = "manager" },
+                new BranchProductPrice { BranchId = 2, ProductId = 8, BasePrice = 47000, PromoPrice = 42000,
+                    Note = "KM cuối tháng", UpdatedAt = DateTime.Now.AddDays(-2), UpdatedBy = "manager" },
+            };
         }
     }
 }

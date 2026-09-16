@@ -1,6 +1,6 @@
 @model E_Coffee.Models.ProductManagementIndexViewModel
 @{
-    ViewData["Title"] = "Quản Lý Sản Phẩm";
+    ViewData["Title"] = Model.IsAdminView ? "Quản Lý Sản Phẩm & Menu" : $"Giá & Voucher – {Model.ActiveBranchName}";
     Layout = "~/Views/Shared/_BarLayout.cshtml";
 }
 
@@ -15,57 +15,132 @@
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-shop text-danger" style="font-size:1rem;"></i>
             <div>
-                <h1 class="fw-bold mb-0 lh-1" style="font-size:.95rem; color:#111827;">Quản Lý Sản Phẩm & Menu</h1>
-                <p class="text-muted mb-0" style="font-size:.72rem; margin-top:2px;">Cấu hình giá vốn · giá bán · lãi gộp · voucher</p>
+                @if (Model.IsAdminView)
+                {
+                    <h1 class="fw-bold mb-0 lh-1" style="font-size:.95rem; color:#111827;">Quản Lý Sản Phẩm & Menu</h1>
+                    <p class="text-muted mb-0" style="font-size:.72rem; margin-top:2px;">Cấu hình giá vốn · giá bán · lãi gộp · voucher</p>
+                }
+                else
+                {
+                    <h1 class="fw-bold mb-0 lh-1" style="font-size:.95rem; color:#111827;">Giá Bán & Voucher</h1>
+                    <p class="text-muted mb-0" style="font-size:.72rem; margin-top:2px;">Điều chỉnh giá bán và voucher khuyến mãi cho trụ sở của bạn</p>
+                }
             </div>
         </div>
-        <!-- KPI mini chips căn phải -->
         <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            @* ── Branch badge / switcher ── *@
+            @if (Model.IsAdminView)
+            {
+                <div class="dropdown" id="pmBranchSwitcher">
+                    <button class="btn btn-sm @(Model.ActiveBranchId.HasValue ? "btn-danger" : "btn-outline-secondary") dropdown-toggle d-flex align-items-center gap-1"
+                            type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                            style="font-size:0.78rem; border-radius:50px; padding:0.25rem 0.85rem;">
+                        <i class="bi bi-shop"></i>
+                        @Model.ActiveBranchName
+                        @if (Model.ActiveBranchId.HasValue) { <span class="badge bg-white text-danger" style="font-size:.55rem;">Filter</span> }
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width:240px; border-radius:12px;">
+                        <li class="px-3 py-1" style="font-size:.7rem; color:#999; font-weight:600;">PHẠM VI QUẢN LÝ</li>
+                        <li>
+                            <form method="post" action="/ProductManagement/SwitchBranch">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="branchId" value="">
+                                <button type="submit" class="dropdown-item fw-semibold py-2 @(!Model.ActiveBranchId.HasValue ? "active" : "")" style="font-size:.82rem;">
+                                    <i class="bi bi-globe2 me-2 text-secondary"></i>Tất cả (giá gốc global)
+                                </button>
+                            </form>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        @foreach (var branch in Model.AvailableBranches)
+                        {
+                            <li>
+                                <form method="post" action="/ProductManagement/SwitchBranch">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="branchId" value="@branch.Id">
+                                    <button type="submit" class="dropdown-item py-2 @(Model.ActiveBranchId == branch.Id ? "active" : "")" style="font-size:.8rem;">
+                                        <i class="bi bi-geo-alt-fill me-2 @(Model.ActiveBranchId == branch.Id ? "text-white" : "text-danger")"></i>
+                                        @branch.ShortName
+                                        @if (Model.ActiveBranchId == branch.Id) { <i class="bi bi-check-lg ms-auto"></i> }
+                                    </button>
+                                </form>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                @* Manager: badge cố định *@
+                <span class="badge d-flex align-items-center gap-1"
+                      style="background:linear-gradient(135deg,#C8102E,#8B1A1A); color:#fff; border-radius:50px; padding:.3rem .9rem; font-size:.78rem;">
+                    <i class="bi bi-shop"></i> @Model.ActiveBranchName
+                </span>
+            }
+            @* KPI chips *@
             <div class="pm-kpi-chip">
                 <i class="bi bi-box-seam-fill" style="color:#dc2626;"></i>
                 <span class="pm-kpi-chip-val">@Model.Kpi.TotalProducts</span>
                 <span class="pm-kpi-chip-label">món · <b class="text-success">@Model.Kpi.ActiveProducts</b> đang bán</span>
             </div>
-            <div class="pm-kpi-chip">
-                <i class="bi bi-graph-up-arrow" style="color:#16a34a;"></i>
-                <span class="pm-kpi-chip-val" style="color:#16a34a;">@Model.Kpi.AverageMarginPercent%</span>
-                <span class="pm-kpi-chip-label">biên lãi TB · <b>@Model.Kpi.AverageProfitPerUnit.ToString("N0")đ</b>/ly</span>
-            </div>
+            @if (Model.IsAdminView)
+            {
+                <div class="pm-kpi-chip">
+                    <i class="bi bi-graph-up-arrow" style="color:#16a34a;"></i>
+                    <span class="pm-kpi-chip-val" style="color:#16a34a;">@Model.Kpi.AverageMarginPercent%</span>
+                    <span class="pm-kpi-chip-label">biên lãi TB · <b>@Model.Kpi.AverageProfitPerUnit.ToString("N0")đ</b>/ly</span>
+                </div>
+            }
             <div class="pm-kpi-chip">
                 <i class="bi bi-ticket-perforated" style="color:#d97706;"></i>
                 <span class="pm-kpi-chip-val" style="color:#d97706;">@Model.Kpi.ActiveVouchers</span>
-                <span class="pm-kpi-chip-label">voucher hiệu lực</span>
+                <span class="pm-kpi-chip-label">voucher hiệu lực
+                    @if (Model.ActiveBranchId.HasValue) { <span style="font-size:.65rem;">(trụ sở)</span> }
+                </span>
             </div>
-            <div class="pm-kpi-chip" title="@Model.Kpi.TopMarginProductName">
-                <i class="bi bi-trophy-fill" style="color:#2563eb;"></i>
-                <span class="pm-kpi-chip-val" style="color:#2563eb;">@Model.Kpi.TopMarginPercent%</span>
-                <span class="pm-kpi-chip-label" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@Model.Kpi.TopMarginProductName</span>
-            </div>
+            @if (Model.IsAdminView)
+            {
+                <div class="pm-kpi-chip" title="@Model.Kpi.TopMarginProductName">
+                    <i class="bi bi-trophy-fill" style="color:#2563eb;"></i>
+                    <span class="pm-kpi-chip-val" style="color:#2563eb;">@Model.Kpi.TopMarginPercent%</span>
+                    <span class="pm-kpi-chip-label" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@Model.Kpi.TopMarginProductName</span>
+                </div>
+            }
         </div>
     </div>
 
     <!-- ── Tab Nav ── -->
     <div class="pm-tab-nav d-inline-flex mb-3">
         <button class="pm-tab-btn @(Model.ActiveTab == "products" ? "active" : "")" id="tabBtn-products" onclick="switchTab('products')">
-            <i class="bi bi-box-seam"></i> Sản Phẩm & Giá Vốn
+            <i class="bi @(Model.IsAdminView ? "bi-box-seam" : "bi-tags")"></i>
+            @(Model.IsAdminView ? "Sản Phẩm & Giá Vốn" : "Giá Bán Trụ Sở")
             <span class="badge-count">@Model.Products.Count</span>
         </button>
-        <button class="pm-tab-btn @(Model.ActiveTab == "categories" ? "active" : "")" id="tabBtn-categories" onclick="switchTab('categories')">
-            <i class="bi bi-grid-3x3-gap"></i> Danh Mục
-            <span class="badge-count">@Model.Categories.Count</span>
-        </button>
-        <button class="pm-tab-btn @(Model.ActiveTab == "toppings" ? "active" : "")" id="tabBtn-toppings" onclick="switchTab('toppings')">
-            <i class="bi bi-layers"></i> Topping
-            <span class="badge-count">@(Model.MasterToppings?.Count ?? 0)</span>
-        </button>
+        @if (Model.IsAdminView)
+        {
+            <button class="pm-tab-btn @(Model.ActiveTab == "categories" ? "active" : "")" id="tabBtn-categories" onclick="switchTab('categories')">
+                <i class="bi bi-grid-3x3-gap"></i> Danh Mục
+                <span class="badge-count">@Model.Categories.Count</span>
+            </button>
+            <button class="pm-tab-btn @(Model.ActiveTab == "toppings" ? "active" : "")" id="tabBtn-toppings" onclick="switchTab('toppings')">
+                <i class="bi bi-layers"></i> Topping
+                <span class="badge-count">@(Model.MasterToppings?.Count ?? 0)</span>
+            </button>
+        }
         <button class="pm-tab-btn @(Model.ActiveTab == "vouchers" ? "active" : "")" id="tabBtn-vouchers" onclick="switchTab('vouchers')">
             <i class="bi bi-ticket-perforated"></i> Voucher
+            @if (!Model.IsAdminView && Model.ActiveBranchId.HasValue)
+            {
+                <span style="font-size:.6rem; color:#dc2626;">trụ sở</span>
+            }
             <span class="badge-count">@Model.Vouchers.Count</span>
         </button>
-        <button class="pm-tab-btn @(Model.ActiveTab == "history" ? "active" : "")" id="tabBtn-history" onclick="switchTab('history')">
-            <i class="bi bi-clock-history"></i> Lịch Sử Giá
-            <span class="badge-count">@Model.PriceHistories.Count</span>
-        </button>
+        @if (Model.IsAdminView)
+        {
+            <button class="pm-tab-btn @(Model.ActiveTab == "history" ? "active" : "")" id="tabBtn-history" onclick="switchTab('history')">
+                <i class="bi bi-clock-history"></i> Lịch Sử Giá
+                <span class="badge-count">@Model.PriceHistories.Count</span>
+            </button>
+        }
     </div>
 
     <!-- ================================================================== -->
@@ -91,10 +166,19 @@
                     <option value="true">Đang bán</option>
                     <option value="false">Tạm ngưng</option>
                 </select>
-                <div class="ms-auto">
-                    <button class="btn btn-sm btn-pm-primary" onclick="openAddProductModal()">
-                        <i class="bi bi-plus-circle me-1"></i>Thêm Món Mới
-                    </button>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    @if (Model.IsAdminView)
+                    {
+                        <button class="btn btn-sm btn-pm-primary" onclick="openAddProductModal()">
+                            <i class="bi bi-plus-circle me-1"></i>Thêm Món Mới
+                        </button>
+                    }
+                    @if (!Model.IsAdminView && Model.ActiveBranchId.HasValue)
+                    {
+                        <span class="badge bg-warning-subtle text-warning-emphasis" style="font-size:.72rem; padding:.35rem .7rem; border-radius:20px;">
+                            <i class="bi bi-info-circle"></i> Giá đỏ = đã override trụ sở · Giá trắng = giá gốc hệ thống
+                        </span>
+                    }
                 </div>
             </div>
 
@@ -104,13 +188,23 @@
                     <table class="pm-table" id="productsTable">
                         <thead>
                             <tr>
-                                <th style="width:50px;">Ảnh</th>
+                                <th style="width:50px;">Hình</th>
                                 <th>Tên Món</th>
                                 <th>Danh Mục</th>
-                                <th class="text-end">Giá Nhập</th>
-                                <th class="text-end">Giá Bán</th>
-                                <th class="text-end">Lãi / Ly</th>
-                                <th class="text-center">Biên Lãi</th>
+                                @if (Model.IsAdminView)
+                                {
+                                    <th class="text-end">Giá Nhập</th>
+                                }
+                                <th class="text-end">Giá Bán @(Model.ActiveBranchId.HasValue && !Model.IsAdminView ? "(Hệ Thống)" : "")</th>
+                                @if (Model.ActiveBranchId.HasValue)
+                                {
+                                    <th class="text-end" style="color:#dc2626;"><i class="bi bi-geo-alt-fill"></i> Giá Trụ Sở</th>
+                                }
+                                @if (Model.IsAdminView)
+                                {
+                                    <th class="text-end">Lãi / Ly</th>
+                                    <th class="text-center">Biên Lãi</th>
+                                }
                                 <th class="text-center">Bán</th>
                                 <th class="text-center" style="width:150px;">Thao Tác</th>
                             </tr>
@@ -119,6 +213,9 @@
                             @foreach (var p in Model.Products)
                             {
                                 var marginClass = p.ProfitMarginPercent >= 60 ? "margin-high" : (p.ProfitMarginPercent >= 40 ? "margin-mid" : "margin-low");
+                                var branchBase  = Model.GetEffectiveBasePrice(p.Id, p.BasePrice);
+                                var branchPromo = Model.GetEffectivePromoPrice(p.Id, p.PromoPrice);
+                                var hasOverride = Model.HasBranchOverride(p.Id);
                                 <tr data-pid="@p.Id" data-name="@p.Name.ToLower()" data-cat="@p.CategoryId" data-available="@p.IsAvailable.ToString().ToLower()" class="@(p.IsAvailable ? "" : "unavailable")">
                                     <td>
                                         @if (!string.IsNullOrEmpty(p.ImageUrl))
@@ -139,9 +236,13 @@
                                         }
                                     </td>
                                     <td style="font-size:.78rem; color:#6b7280;">@p.CategoryName</td>
-                                    <td class="text-end td-cost" data-val="@p.CostPrice" style="font-size:.82rem; color:#6b7280; font-weight:600;">
-                                        @p.CostPrice.ToString("N0")đ
-                                    </td>
+                                    @if (Model.IsAdminView)
+                                    {
+                                        <td class="text-end td-cost" data-val="@p.CostPrice" style="font-size:.82rem; color:#6b7280; font-weight:600;">
+                                            @p.CostPrice.ToString("N0")đ
+                                        </td>
+                                    }
+                                    @* Cột giá hệ thống (global) *@
                                     <td class="text-end td-price" data-base="@p.BasePrice" data-promo="@(p.PromoPrice?.ToString() ?? "0")">
                                         @if (p.HasPromo)
                                         {
@@ -153,14 +254,41 @@
                                             <span style="font-size:.85rem; font-weight:700;">@p.BasePrice.ToString("N0")đ</span>
                                         }
                                     </td>
-                                    <td class="text-end">
-                                        <span style="font-size:.85rem; font-weight:700; color:#16a34a;">+@p.ProfitPerUnit.ToString("N0")đ</span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="margin-badge @marginClass">
-                                            <i class="bi bi-percent" style="font-size:.65rem;"></i>@p.ProfitMarginPercent
-                                        </span>
-                                    </td>
+                                    @* Cột giá trụ sở (override) — chỉ hiện khi đang xem 1 branch *@
+                                    @if (Model.ActiveBranchId.HasValue)
+                                    {
+                                        <td class="text-end">
+                                            @if (hasOverride)
+                                            {
+                                                <div title="Giá riêng trụ sở @Model.ActiveBranchName">
+                                                    @if (branchPromo.HasValue && branchPromo.Value > 0)
+                                                    {
+                                                        <span style="font-size:.72rem; color:#9ca3af; text-decoration:line-through;">@branchBase.ToString("N0")đ</span><br>
+                                                        <span style="font-size:.85rem; color:#dc2626; font-weight:700;">@branchPromo.Value.ToString("N0")đ <i class="bi bi-geo-alt-fill" style="font-size:.65rem;"></i></span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span style="font-size:.85rem; color:#dc2626; font-weight:700;">@branchBase.ToString("N0")đ <i class="bi bi-geo-alt-fill" style="font-size:.65rem;"></i></span>
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span style="font-size:.78rem; color:#9ca3af; font-style:italic;">dùng giá gốc</span>
+                                            }
+                                        </td>
+                                    }
+                                    @if (Model.IsAdminView)
+                                    {
+                                        <td class="text-end">
+                                            <span style="font-size:.85rem; font-weight:700; color:#16a34a;">+@p.ProfitPerUnit.ToString("N0")đ</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="margin-badge @marginClass">
+                                                <i class="bi bi-percent" style="font-size:.65rem;"></i>@p.ProfitMarginPercent
+                                            </span>
+                                        </td>
+                                    }
                                     <td class="text-center">
                                         <label class="pm-toggle">
                                             <input type="checkbox" @(p.IsAvailable ? "checked" : "") onchange="toggleProductStatus(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))', @p.IsAvailable.ToString().ToLower())">
@@ -168,9 +296,27 @@
                                         </label>
                                     </td>
                                     <td class="text-center">
-                                        <button class="pm-action-btn history" title="Cập nhật giá nhanh" onclick="showQuickPriceEdit(@p.Id)"><i class="bi bi-lightning-charge-fill"></i></button>
-                                        <button class="pm-action-btn edit" title="Chỉnh sửa" onclick="openEditProductModal(@p.Id)"><i class="bi bi-pencil-fill"></i></button>
-                                        <button class="pm-action-btn delete" title="Xóa" onclick="deleteProduct(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))')"><i class="bi bi-trash3-fill"></i></button>
+                                        @if (Model.IsAdminView)
+                                        {
+                                            @* Admin: quick-price, edit, delete *@
+                                            <button class="pm-action-btn history" title="Cập nhật giá nhanh" onclick="showQuickPriceEdit(@p.Id)"><i class="bi bi-lightning-charge-fill"></i></button>
+                                            <button class="pm-action-btn edit" title="Chỉnh sửa" onclick="openEditProductModal(@p.Id)"><i class="bi bi-pencil-fill"></i></button>
+                                            <button class="pm-action-btn delete" title="Xóa" onclick="deleteProduct(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))')"><i class="bi bi-trash3-fill"></i></button>
+                                        }
+                                        else
+                                        {
+                                            @* Manager: đặt giá trụ sở *@
+                                            <button class="pm-action-btn @(hasOverride ? "edit" : "history")" title="Đặt giá trụ sở"
+                                                    onclick="openBranchPriceModal(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))', @p.BasePrice, @(p.PromoPrice?.ToString() ?? "0"), @branchBase, @(branchPromo?.ToString() ?? "0"))">
+                                                <i class="bi bi-tags-fill"></i>
+                                            </button>
+                                            @if (hasOverride)
+                                            {
+                                                <button class="pm-action-btn delete" title="Xóa giá override - dùng giá gốc" onclick="deleteBranchPrice(@p.Id, '@Html.Raw(p.Name.Replace("'", "\\'"))')">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            }
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -878,6 +1024,135 @@
     </div>
 </div>
 
+
+@* ══════════════════════════════════════════════════════
+   MODAL: ĐẶT GIÁ TRỤ SỞ (Manager only)
+══════════════════════════════════════════════════════ *@
+@if (!Model.IsAdminView)
+{
+    <div class="modal fade" id="branchPriceModal" tabindex="-1" aria-labelledby="branchPriceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px; border:none; box-shadow:0 20px 60px rgba(0,0,0,.15);">
+                <div class="modal-header" style="background:linear-gradient(135deg,#C8102E,#8B1A1A); border-radius:16px 16px 0 0; border:none; padding:1.1rem 1.4rem;">
+                    <h5 class="modal-title text-white fw-bold" id="branchPriceModalLabel">
+                        <i class="bi bi-tags-fill me-2"></i>Đặt giá trụ sở — <span id="bpProductName"></span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" id="bpProductId">
+                    <div class="alert alert-info d-flex gap-2 py-2 mb-3" style="font-size:.8rem; border-radius:10px;">
+                        <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+                        <div>
+                            Giá gốc hệ thống: <strong id="bpGlobalPrice"></strong>.
+                            Để trống giá KM nếu không có khuyến mãi.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.85rem;">Giá bán tại @Model.ActiveBranchName <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="bpBasePrice" placeholder="VD: 32000" min="1000" step="1000">
+                            <span class="input-group-text">đ</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.85rem;">Giá khuyến mãi (để trống = không KM)</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="bpPromoPrice" placeholder="VD: 28000 (thấp hơn giá bán)" min="0" step="1000">
+                            <span class="input-group-text">đ</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.85rem;">Ghi chú lý do <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+                        <input type="text" class="form-control" id="bpNote" placeholder="VD: Mặt bằng Q.1 cao hơn...">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4 px-4 gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="button" class="btn btn-danger fw-semibold px-4" onclick="saveBranchPrice()">
+                        <i class="bi bi-floppy-fill me-1"></i>Lưu giá trụ sở
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @section Scripts {
     <script src="~/js/product-management.js" asp-append-version="true"></script>
+    @if (!Model.IsAdminView)
+    {
+        <script>
+            // ── Branch Price Modal (Manager only) ──────────────────────
+            function openBranchPriceModal(pid, name, globalBase, globalPromo, branchBase, branchPromo) {
+                document.getElementById('bpProductId').value = pid;
+                document.getElementById('bpProductName').textContent = name;
+                const globalPriceText = globalPromo > 0
+                    ? `${Number(globalBase).toLocaleString('vi-VN')}đ → KM: ${Number(globalPromo).toLocaleString('vi-VN')}đ`
+                    : `${Number(globalBase).toLocaleString('vi-VN')}đ`;
+                document.getElementById('bpGlobalPrice').textContent = globalPriceText;
+                document.getElementById('bpBasePrice').value  = branchBase || globalBase || '';
+                document.getElementById('bpPromoPrice').value = (branchPromo > 0 ? branchPromo : '') || '';
+                document.getElementById('bpNote').value = '';
+                new bootstrap.Modal(document.getElementById('branchPriceModal')).show();
+            }
+
+            async function saveBranchPrice() {
+                const pid  = parseInt(document.getElementById('bpProductId').value);
+                const base = parseFloat(document.getElementById('bpBasePrice').value);
+                const promo= parseFloat(document.getElementById('bpPromoPrice').value) || null;
+                const note = document.getElementById('bpNote').value.trim();
+
+                if (!base || base < 1000) {
+                    alert('Vui lòng nhập giá bán hợp lệ (tối thiểu 1,000đ)');
+                    return;
+                }
+                if (promo && promo >= base) {
+                    alert('Giá khuyến mãi phải thấp hơn giá bán!');
+                    return;
+                }
+
+                const res = await fetch('/ProductManagement/SaveBranchPrice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productId: pid, basePrice: base, promoPrice: promo, note })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('branchPriceModal')).hide();
+                    showToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast(data.message || 'Lỗi lưu giá', 'danger');
+                }
+            }
+
+            async function deleteBranchPrice(pid, name) {
+                if (!confirm(`Xóa giá override "${name}"?\nSẽ dùng lại giá gốc hệ thống.`)) return;
+                const res = await fetch('/ProductManagement/DeleteBranchPrice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: pid })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showToast(data.message || 'Lỗi', 'danger');
+                }
+            }
+
+            // Helper toast (reuse từ product-management.js nếu có, fallback alert)
+            function showToast(msg, type = 'success') {
+                if (typeof window.pmShowToast === 'function') { window.pmShowToast(msg, type); return; }
+                const t = document.createElement('div');
+                t.className = `alert alert-${type} position-fixed bottom-0 end-0 m-3`;
+                t.style.cssText = 'z-index:9999;border-radius:10px;min-width:280px;';
+                t.textContent = msg;
+                document.body.appendChild(t);
+                setTimeout(() => t.remove(), 2500);
+            }
+        </script>
+    }
 }

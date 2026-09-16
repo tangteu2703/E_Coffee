@@ -15,9 +15,17 @@ const ECoffee = (function () {
     tableNumber: 'Bàn 01',
     customerName: '',
     customerPhone: '',
-    address: 'Trạm phát sóng, Phùng Chí Kiên, HY',
+    address: '',
+    branchId: null,       // ID trụ sở tiếp nhận đơn
+    branchName: '',       // Tên trụ sở
     storeName: 'Hoàng Gia Coffee'
   };
+
+  // Branches state (loaded once from server)
+  let branchesData = [];
+  let _branchesLoading = false;
+  let _branchesLoaded  = false;
+  let _branchLoadCbs   = [];  // callbacks waiting for branches
 
   let appliedVoucher = null;
 
@@ -45,6 +53,8 @@ const ECoffee = (function () {
     bindEvents();
     renderHeaderMode();
     renderCart();
+    // Prefetch branches in background
+    loadBranches();
   }
 
   // Load Saved Order Mode
@@ -618,20 +628,270 @@ const ECoffee = (function () {
     showToast('Đã xóa món khỏi giỏ hàng', 'info');
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // BRANCHES LOGIC — Fetch, Haversine, GPS, Auto-suggest nearest branch
+  // ════════════════════════════════════════════════════════════════════
+
+  /** Fetch danh sạch trụ sở từ server (chỉ gọi 1 lần) */
+  function loadBranches(callback) {
+    if (_branchesLoaded) {
+      if (callback) callback(branchesData);
+      return;
+    }
+    if (callback) _branchLoadCbs.push(callback);
+    if (_branchesLoading) return;
+    _branchesLoading = true;
+    fetch('/Order/GetBranches')
+      .then(r => r.json())
+      .then(data => {
+        branchesData = data || [];
+        _branchesLoaded = true;
+        _branchesLoading = false;
+        _branchLoadCbs.forEach(cb => cb(branchesData));
+        _branchLoadCbs = [];
+      })
+      .catch(err => {
+        console.warn('[ECoffee] Lỗi load branches:', err);
+        _branchesLoading = false;
+      });
+  }
+
+  /** Tính khoảng cách giữa 2 toạ độ GPS theo công thức Haversine (km) */
+  function haversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2
+            + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+            * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  /** Tìm trụ sở gần nhất so với tọa độ (lat, lng) */
+  function findNearestBranch(lat, lng) {
+    if (!branchesData.length) return null;
+    let nearest = null;
+    let minDist = Infinity;
+    branchesData.forEach(b => {
+      const d = haversineKm(lat, lng, b.lat, b.lng);
+      if (d < minDist) { minDist = d; nearest = { branch: b, distKm: d }; }
+    });
+    return nearest;
+  }
+
+  /** Populate combobox trụ sở cho cả Delivery và Pickup */
+  function populateBranchSelect(selectId, selectedBranchId, nearestId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Chọn trụ sở --</option>';
+    branchesData.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.shortName || b.name;
+      if (b.id === nearestId) opt.textContent += ' ★ Gần nhất';
+      if (b.id === selectedBranchId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  /** Hiển thị thông tin chi tiết trụ sở bên dưới combobox */
+  function showBranchInfo(mode, branch, distKm) {
+    const suffix = mode === 'delivery' ? 'Delivery' : 'Pickup';
+    const infoEl    = document.getElementById(`branchInfo${suffix}`);
+    const addrEl    = document.getElementById(`branchInfoAddress${suffix}`);
+    const phoneEl   = document.getElementById(`branchInfoPhone${suffix}`);
+    const hoursEl   = document.getElementById(`branchInfoHours${suffix}`);
+    const distEl    = document.getElementById(`branchInfoDist${suffix}`);
+    if (!infoEl || !branch) return;
+
+    if (addrEl)  addrEl.textContent  = branch.address || '';
+    if (phoneEl) phoneEl.textContent = branch.phone   || '';
+    if (hoursEl) hoursEl.textContent = branch.openHours || '';
+    if (distEl)  distEl.textContent  = distKm != null ? `≈ ${distKm < 1 ? (distKm * 1000).toFixed(0) + ' m' : distKm.toFixed(1) + ' km'}` : '';
+    infoEl.style.display = 'block';
+  }
+
+  function hideBranchInfo(mode) {
+    const suffix = mode === 'delivery' ? 'Delivery' : 'Pickup';
+    const el = document.getElementById(`branchInfo${suffix}`);
+    if (el) el.style.display = 'none';
+  }
+
+  /** 
+   * GPS: Lấy vị trí hiện tại rồi reverse-geocode qua Nominatim (free, không API key)
+   * Sau đó tự động chọn trụ sở gần nhất
+   * @param {string} mode 'delivery' | 'pickup'
+   */
+  function getGpsLocation(mode) {
+    if (!navigator.geolocation) {
+      showToast('Trình duyệt không hỗ trợ GPS', 'error');
+      return;
+    }
+
+    const statusEl = document.getElementById(mode === 'delivery' ? 'gpsStatusDelivery' : 'gpsStatusPickup');
+    const btnEl    = document.getElementById(mode === 'delivery' ? 'btnGpsDelivery'    : 'btnGpsPickup');
+
+    if (statusEl) { statusEl.textContent = '⏳ Đang lấy vị trí GPS...'; statusEl.style.display = 'inline'; }
+    if (btnEl)    btnEl.disabled = true;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        // 1. Reverse-geocode bằng Nominatim (OSM, miễn phí)
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=vi`)
+          .then(r => r.json())
+          .then(data => {
+            const displayAddr = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            // Rút gọn địa chỉ: bỏ quốc gia cuối cùng nếu quá dài
+            const parts = displayAddr.split(',').map(s => s.trim());
+            const shortAddr = parts.length > 5 ? parts.slice(0, 5).join(', ') : displayAddr;
+
+            if (mode === 'delivery') {
+              const addrInput = document.getElementById('inputAddress');
+              if (addrInput) addrInput.value = shortAddr;
+              const hint = document.getElementById('gpsHintDelivery');
+              if (hint) hint.style.display = 'block';
+            }
+
+            if (statusEl) { statusEl.textContent = '✅ Đã lấy vị trí'; }
+
+            // 2. Tìm trụ sở gần nhất theo GPS thực
+            loadBranches(branches => {
+              const result = findNearestBranch(lat, lng);
+              if (!result) return;
+              const nearestId = result.branch.id;
+
+              if (mode === 'delivery') {
+                populateBranchSelect('selectBranchDelivery', nearestId, nearestId);
+                const badge = document.getElementById('nearestBranchBadgeDelivery');
+                if (badge) badge.style.display = 'inline';
+                showBranchInfo('delivery', result.branch, result.distKm);
+                orderMode.branchId   = result.branch.id;
+                orderMode.branchName = result.branch.name;
+              } else {
+                populateBranchSelect('selectBranchPickup', nearestId, nearestId);
+                const badge = document.getElementById('nearestBranchBadgePickup');
+                if (badge) badge.style.display = 'inline';
+                showBranchInfo('pickup', result.branch, result.distKm);
+                orderMode.branchId   = result.branch.id;
+                orderMode.branchName = result.branch.name;
+              }
+            });
+          })
+          .catch(() => {
+            if (statusEl) statusEl.textContent = '⚠️ Không đọc được địa chỉ';
+            // Vẫn tìm trụ sở gần nhất theo GPS
+            loadBranches(() => { applyNearestBranchByGps(mode, lat, lng); });
+          })
+          .finally(() => {
+            if (btnEl) btnEl.disabled = false;
+          });
+      },
+      (err) => {
+        if (btnEl) btnEl.disabled = false;
+        const msgs = ['', 'Quyền GPS bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.', 'GPS không xác định được vị trí.', 'Hết thời gian chờ GPS.'];
+        showToast(msgs[err.code] || 'Không thể lấy vị trí GPS', 'error');
+        if (statusEl) statusEl.style.display = 'none';
+      },
+      { timeout: 12000, maximumAge: 30000 }
+    );
+  }
+
+  function applyNearestBranchByGps(mode, lat, lng) {
+    const result = findNearestBranch(lat, lng);
+    if (!result) return;
+    const nearestId = result.branch.id;
+    if (mode === 'delivery') {
+      populateBranchSelect('selectBranchDelivery', nearestId, nearestId);
+      showBranchInfo('delivery', result.branch, result.distKm);
+    } else {
+      populateBranchSelect('selectBranchPickup', nearestId, nearestId);
+      showBranchInfo('pickup', result.branch, result.distKm);
+    }
+    orderMode.branchId   = result.branch.id;
+    orderMode.branchName = result.branch.name;
+  }
+
+  /** Khi user đổi combobox trụ sớ (Delivery) */
+  function onBranchSelectDelivery() {
+    const sel = document.getElementById('selectBranchDelivery');
+    if (!sel) return;
+    const id = parseInt(sel.value);
+    const branch = branchesData.find(b => b.id === id);
+    if (branch) {
+      orderMode.branchId   = branch.id;
+      orderMode.branchName = branch.name;
+      showBranchInfo('delivery', branch, null);
+    } else {
+      hideBranchInfo('delivery');
+    }
+  }
+
+  /** Khi user đổi combobox trụ sớ (Pickup) */
+  function onBranchSelectPickup() {
+    const sel = document.getElementById('selectBranchPickup');
+    if (!sel) return;
+    const id = parseInt(sel.value);
+    const branch = branchesData.find(b => b.id === id);
+    if (branch) {
+      orderMode.branchId   = branch.id;
+      orderMode.branchName = branch.name;
+      showBranchInfo('pickup', branch, null);
+    } else {
+      hideBranchInfo('pickup');
+    }
+  }
+
+  /** Debounce khi user nhập địa chỉ giao hàng — đã nhập >= 10 ky tự thì populate combobox */
+  let _addrDebounce = null;
+  function onDeliveryAddressInput() {
+    clearTimeout(_addrDebounce);
+    _addrDebounce = setTimeout(() => {
+      const hint = document.getElementById('gpsHintDelivery');
+      if (hint) hint.style.display = 'none';
+      // Nếu chưa có branches, load rồi populate default (không có lat/lng nên không gợi được nearest)
+      loadBranches(branches => {
+        if (!document.getElementById('selectBranchDelivery').options.length ||
+            document.getElementById('selectBranchDelivery').options[0].value === '') {
+          populateBranchSelect('selectBranchDelivery', orderMode.branchId, null);
+        }
+      });
+    }, 400);
+  }
+
   // Open Order Mode Modal (QR Table, Delivery, Pickup)
   function openOrderModeModal() {
     const modal = document.getElementById('orderModeModal');
     if (!modal) return;
 
     // Set active tab
-    const modeType = orderMode.type;
-    selectOrderModeTab(modeType);
+    selectOrderModeTab(orderMode.type);
 
-    // Populate inputs
+    // Populate At-Table inputs
     document.getElementById('inputTableNo').value = orderMode.tableNumber || 'Bàn 01';
     document.getElementById('inputCustName').value = orderMode.customerName || '';
     document.getElementById('inputCustPhone').value = orderMode.customerPhone || '';
+
+    // Populate Delivery inputs
     document.getElementById('inputAddress').value = orderMode.address || '';
+    const nameD = document.getElementById('inputCustNameDelivery');
+    if (nameD) nameD.value = orderMode.customerName || '';
+    const phoneD = document.getElementById('inputCustPhoneDelivery');
+    if (phoneD) phoneD.value = orderMode.customerPhone || '';
+
+    // Load branches for Delivery & Pickup comboboxes
+    loadBranches(branches => {
+      const savedId = orderMode.branchId;
+      populateBranchSelect('selectBranchDelivery', savedId, null);
+      populateBranchSelect('selectBranchPickup',   savedId, null);
+      if (savedId) {
+        const b = branches.find(x => x.id === savedId);
+        if (b && orderMode.type === 'Delivery') showBranchInfo('delivery', b, null);
+        if (b && orderMode.type === 'Pickup')   showBranchInfo('pickup',   b, null);
+      }
+    });
 
     modal.classList.add('active');
   }
@@ -643,36 +903,71 @@ const ECoffee = (function () {
     if (targetBtn) targetBtn.classList.add('active');
 
     // Show/hide relevant fields
-    document.getElementById('sectionAtTableFields').style.display = type === 'AtTable' ? 'block' : 'none';
+    document.getElementById('sectionAtTableFields').style.display  = type === 'AtTable'  ? 'block' : 'none';
     document.getElementById('sectionDeliveryFields').style.display = type === 'Delivery' ? 'block' : 'none';
-    document.getElementById('sectionPickupFields').style.display = type === 'Pickup' ? 'block' : 'none';
+    document.getElementById('sectionPickupFields').style.display   = type === 'Pickup'   ? 'block' : 'none';
+
+    // Khi mở tab Pickup, đảm bảo combobox đã được fill
+    if (type === 'Pickup') {
+      loadBranches(branches => {
+        if (!document.getElementById('selectBranchPickup').options.length ||
+            document.getElementById('selectBranchPickup').options[0].value === '') {
+          populateBranchSelect('selectBranchPickup', orderMode.branchId, null);
+          if (orderMode.branchId) {
+            const b = branches.find(x => x.id === orderMode.branchId);
+            if (b) showBranchInfo('pickup', b, null);
+          }
+        }
+      });
+    }
   }
 
   function saveOrderModeFromModal() {
     if (orderMode.type === 'AtTable') {
       const tableNo = document.getElementById('inputTableNo').value.trim();
-      const name = document.getElementById('inputCustName').value.trim();
-      const phone = document.getElementById('inputCustPhone').value.trim();
-
+      const name    = document.getElementById('inputCustName').value.trim();
+      const phone   = document.getElementById('inputCustPhone').value.trim();
       if (!name || !phone) {
         showToast('Vui lòng nhập Tên và Số điện thoại để định danh tại bàn', 'warning');
         return;
       }
-      orderMode.tableNumber = tableNo || 'Bàn 01';
+      orderMode.tableNumber  = tableNo || 'Bàn 01';
       orderMode.customerName = name;
       orderMode.customerPhone = phone;
+
     } else if (orderMode.type === 'Delivery') {
       const address = document.getElementById('inputAddress').value.trim();
-      const name = document.getElementById('inputCustNameDelivery').value.trim();
-      const phone = document.getElementById('inputCustPhoneDelivery').value.trim();
+      const name    = document.getElementById('inputCustNameDelivery').value.trim();
+      const phone   = document.getElementById('inputCustPhoneDelivery').value.trim();
+      const branchSel = document.getElementById('selectBranchDelivery');
+      const branchId  = branchSel ? parseInt(branchSel.value) : null;
 
       if (!address || !phone) {
         showToast('Vui lòng nhập địa chỉ và Số điện thoại giao hàng', 'warning');
         return;
       }
-      orderMode.address = address;
-      orderMode.customerName = name;
+      if (!branchId) {
+        showToast('Vui lòng chọn trụ sở tiếp nhận đơn giao hàng', 'warning');
+        return;
+      }
+      orderMode.address       = address;
+      orderMode.customerName  = name;
       orderMode.customerPhone = phone;
+      orderMode.branchId      = branchId;
+      const branchObj = branchesData.find(b => b.id === branchId);
+      orderMode.branchName    = branchObj ? branchObj.name : '';
+
+    } else if (orderMode.type === 'Pickup') {
+      const branchSel = document.getElementById('selectBranchPickup');
+      const branchId  = branchSel ? parseInt(branchSel.value) : null;
+      if (!branchId) {
+        showToast('Vui lòng chọn cửa hàng bạn muốn đến lấy', 'warning');
+        return;
+      }
+      const branchObj = branchesData.find(b => b.id === branchId);
+      orderMode.branchId      = branchId;
+      orderMode.branchName    = branchObj ? branchObj.name : '';
+      orderMode.customerName  = orderMode.customerName || 'Khách hàng';
     }
 
     saveOrderMode();
@@ -1048,6 +1343,10 @@ const ECoffee = (function () {
     openOrderModeModal,
     selectOrderModeTab,
     saveOrderModeFromModal,
+    getGpsLocation,
+    onDeliveryAddressInput,
+    onBranchSelectDelivery,
+    onBranchSelectPickup,
     applyVoucherFromInput,
     applyVoucherCode,
     removeVoucher,

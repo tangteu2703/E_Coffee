@@ -19,6 +19,30 @@ namespace E_Coffee.Controllers
         }
 
         // ──────────────────────────────────────────────────────────────────────────
+        // Helper: đọc ActiveBranchId từ Session
+        //   Admin    → null (xem tất cả) HOẶC có nếu đã switch
+        //   Manager  → luôn có giá trị cố định từ Claim
+        // ──────────────────────────────────────────────────────────────────────────
+        private int? GetActiveBranchId()
+        {
+            // Staff/Manager: BranchId cố định từ Claim, không thể override
+            if (!User.IsInRole("Admin"))
+            {
+                var claimVal = User.FindFirst("BranchId")?.Value;
+                return int.TryParse(claimVal, out var cid) ? cid : (int?)null;
+            }
+            // Admin: đọc từ Session (có thể null = tất cả)
+            return HttpContext.Session.GetInt32("ActiveBranchId");
+        }
+
+        private string ResolveBranchName(int? branchId)
+        {
+            if (!branchId.HasValue) return "Tổng hợp tất cả trụ sở";
+            var b = _catalogService.GetBranchById(branchId.Value);
+            return b?.ShortName ?? b?.Name ?? $"Trụ sở #{branchId}";
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
         // GET: /Analytics  (trang chính)
         // ──────────────────────────────────────────────────────────────────────────
         public IActionResult Index()
@@ -26,13 +50,36 @@ namespace E_Coffee.Controllers
             var toDate   = DateTime.Today;
             var fromDate = toDate.AddDays(-6); // mặc định: 7 ngày gần nhất
 
-            var vm = BuildViewModel(fromDate, toDate, "day", "all");
-            vm.FilterFromDate = fromDate.ToString("dd/MM/yyyy");
-            vm.FilterToDate   = toDate.ToString("dd/MM/yyyy");
-            vm.FilterGroupBy  = "day";
-            vm.FilterChannel  = "all";
+            var branchId   = GetActiveBranchId();
+            var isAdmin    = User.IsInRole("Admin");
+
+            var vm = BuildViewModel(fromDate, toDate, "day", "all", branchId);
+            vm.FilterFromDate    = fromDate.ToString("dd/MM/yyyy");
+            vm.FilterToDate      = toDate.ToString("dd/MM/yyyy");
+            vm.FilterGroupBy     = "day";
+            vm.FilterChannel     = "all";
+            vm.ActiveBranchId    = branchId;
+            vm.ActiveBranchName  = ResolveBranchName(branchId);
+            vm.IsAdminView       = isAdmin;
+            vm.AvailableBranches = isAdmin ? _catalogService.GetBranches() : new();
 
             return View(vm);
+        }
+
+        // ──────────────────────────────────────────────────────────────────────────
+        // POST: /Analytics/SwitchBranch — chỉ Admin
+        // ──────────────────────────────────────────────────────────────────────────
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public IActionResult SwitchBranch(int? branchId)
+        {
+            // Dùng chung Session key với /Bar để nhất quán toàn hệ thống
+            if (branchId.HasValue && branchId.Value > 0)
+                HttpContext.Session.SetInt32("ActiveBranchId", branchId.Value);
+            else
+                HttpContext.Session.Remove("ActiveBranchId"); // Reset về "Tất cả"
+
+            return RedirectToAction("Index");
         }
 
         // ──────────────────────────────────────────────────────────────────────────
@@ -56,30 +103,44 @@ namespace E_Coffee.Controllers
 
             if (from > to) (from, to) = (to, from);
 
-            var vm = BuildViewModel(from, to, req.GroupBy ?? "day", req.Channel ?? "all");
+            // BranchId: server luôn lấy từ Session — client KHÔNG được override
+            // (bảo mật: Manager không thể gửi branchId khác của mình lên)
+            var branchId = GetActiveBranchId();
+            var vm = BuildViewModel(from, to, req.GroupBy ?? "day", req.Channel ?? "all", branchId);
 
             return Json(new AnalyticsApiResponse
             {
-                Success      = true,
-                Kpi          = vm.Kpi,
-                ChartData    = vm.ChartData,
-                CategoryData = vm.CategoryRevenues,
-                TopProducts  = vm.TopProducts,
-                DetailRows   = vm.DetailRows
+                Success           = true,
+                Kpi               = vm.Kpi,
+                ChartData         = vm.ChartData,
+                CategoryData      = vm.CategoryRevenues,
+                TopProducts       = vm.TopProducts,
+                DetailRows        = vm.DetailRows,
+                ActiveBranchName  = ResolveBranchName(branchId)
             });
         }
 
         // ══════════════════════════════════════════════════════════════════════════
         // Core builder – lấy sản phẩm thực từ DB, build fake orders theo phân phối
+        //
+        // [TODO-DB] Khi kết nối DB thật:
+        //   1. Thay GenerateMockOrders() bằng query thật: GetOrderHistory(branchId, from, to)
+        //   2. Map kết quả sang List<MockOrder> hoặc refactor KPI/Chart builder nhận DTO thật
+        //   3. Xoá toàn bộ mock generation code bên dưới
         // ══════════════════════════════════════════════════════════════════════════
-        private AnalyticsPageViewModel BuildViewModel(DateTime from, DateTime to, string groupBy, string channel)
+        private AnalyticsPageViewModel BuildViewModel(
+            DateTime from, DateTime to, string groupBy, string channel,
+            int? branchId = null)
         {
             // ── Lấy dữ liệu thực từ MockDbContext (qua service) ─────────────────
             var dbProducts   = _catalogService.GetProducts();
             var dbCategories = _catalogService.GetCategories();
 
-            var rng    = new Random(42); // seed cố định → số nhất quán mỗi lần
-            var orders = GenerateMockOrders(from, to, dbProducts, rng);
+            // Seed khác nhau theo branchId để mỗi trụ sở có số riêng, nhất quán
+            // null (tất cả) → seed 42 (gộp), branchId=1 → seed 43, branchId=4 → seed 46, ...
+            int mockSeed = branchId.HasValue ? 42 + branchId.Value : 42;
+            var rng      = new Random(mockSeed);
+            var orders   = GenerateMockOrders(from, to, dbProducts, rng, branchId);
 
             // Lọc theo kênh
             if (channel != "all")
@@ -122,26 +183,39 @@ namespace E_Coffee.Controllers
             public decimal NetRevenue   => GrossRevenue - Discount;
         }
 
-        private List<MockOrder> GenerateMockOrders(DateTime from, DateTime to, List<Product> products, Random rng)
+        private List<MockOrder> GenerateMockOrders(DateTime from, DateTime to, List<Product> products, Random rng, int? branchId = null)
         {
             if (products == null || products.Count == 0)
                 return new List<MockOrder>();
 
-            var channels       = new[] { "dine_in", "delivery", "pickup" };
-            var channelWeights = new[] { 60, 25, 15 };
+            var channels = new[] { "dine_in", "delivery", "pickup" };
+            // Phân phối kênh khác nhau theo đặc điểm từng trụ sở
+            var channelWeights = branchId == 4
+                ? new[] { 40, 45, 15 }  // Vincom Q.1 HCM: delivery nặng hơn
+                : new[] { 60, 25, 15 }; // Mặc định: tại bàn là chính
 
             // Trọng số bán chạy: sản phẩm có badge hot/bán chạy/signature bán nhiều hơn
             var weights = products.Select(p => p.Badge is "Bán Chạy" or "Hot" or "Signature" or "Best Seller" or "Hot Trend" ? 18
                                               : p.Badge is "Must Try" or "Yêu Thích" or "Mới" ? 10
                                               : 5).ToArray();
 
+            // Scale volume theo trụ sở — [TODO-DB] Xoá khi có data thật
+            double volumeScale = branchId switch
+            {
+                null => 1.0,   // Tổng hợp: full volume
+                1    => 0.70,  // Phùng Chí Kiên HN: 70% (trụ sở lớn nhất)
+                4    => 0.55,  // Vincom Q.1 HCM: 55%
+                _    => 0.45   // Các trụ sở khác
+            };
+
             var orders = new List<MockOrder>();
 
             for (var d = from.Date; d <= to.Date; d = d.AddDays(1))
             {
                 // Số lượng orders/ngày: 45-95, cuối tuần nhiều hơn
-                int ordersPerDay = 50 + rng.Next(-20, 45)
-                                 + (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? 30 : 0);
+                int basePerDay = 50 + rng.Next(-20, 45)
+                               + (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? 30 : 0);
+                int ordersPerDay = (int)(basePerDay * volumeScale);
 
                 for (int i = 0; i < ordersPerDay; i++)
                 {

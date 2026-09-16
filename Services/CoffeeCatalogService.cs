@@ -17,6 +17,7 @@ namespace E_Coffee.Services
         private readonly IVoucherRepository _voucherRepo;
         private readonly ITableRepository _tableRepo;
         private readonly IOrderRepository _orderRepo;
+        private readonly IBranchRepository _branchRepo;
         private readonly Data.MockDbContext _context;
 
         public CoffeeCatalogService(
@@ -25,6 +26,7 @@ namespace E_Coffee.Services
             IVoucherRepository voucherRepo,
             ITableRepository tableRepo,
             IOrderRepository orderRepo,
+            IBranchRepository branchRepo,
             Data.MockDbContext context)
         {
             _categoryRepo = categoryRepo;
@@ -32,6 +34,7 @@ namespace E_Coffee.Services
             _voucherRepo = voucherRepo;
             _tableRepo = tableRepo;
             _orderRepo = orderRepo;
+            _branchRepo = branchRepo;
             _context = context;
         }
 
@@ -40,9 +43,41 @@ namespace E_Coffee.Services
             return _categoryRepo.GetAll();
         }
 
+        public List<Branch> GetBranches()
+        {
+            return _branchRepo.GetAll();
+        }
+
         public List<Product> GetProducts(int categoryId = 0, string searchQuery = "")
         {
             return _productRepo.GetAll(categoryId, searchQuery);
+        }
+
+        public List<Product> GetProductsWithBranchPrice(int? branchId, int categoryId = 0, string searchQuery = "")
+        {
+            var products = _productRepo.GetAll(categoryId, searchQuery);
+
+            // Không có branch context → trả nguyên giá global
+            if (!branchId.HasValue) return products;
+
+            // Load overrides của branch này một lần, index theo ProductId
+            var overrides = _context.BranchProductPrices
+                .Where(b => b.BranchId == branchId.Value)
+                .ToDictionary(b => b.ProductId);
+
+            if (overrides.Count == 0) return products;
+
+            // Ghi đè giá trực tiếp trên từng product clone
+            foreach (var p in products)
+            {
+                if (overrides.TryGetValue(p.Id, out var ov))
+                {
+                    p.BasePrice  = ov.BasePrice;
+                    p.PromoPrice = ov.PromoPrice;
+                }
+            }
+
+            return products;
         }
 
         public Product? GetProductById(int id)
@@ -60,14 +95,20 @@ namespace E_Coffee.Services
             return _productRepo.GetSizes();
         }
 
-        public List<BarTableItem> GetBarTables()
+        public List<BarTableItem> GetBarTables(int? branchId = null)
         {
-            return _tableRepo.GetAll();
+            var all = _tableRepo.GetAll();
+            return branchId.HasValue
+                ? all.Where(t => t.BranchId == branchId.Value).ToList()
+                : all;
         }
 
-        public List<BarOnlineOrderItem> GetBarOnlineOrders()
+        public List<BarOnlineOrderItem> GetBarOnlineOrders(int? branchId = null)
         {
-            return _orderRepo.GetOnlineOrders();
+            var all = _orderRepo.GetOnlineOrders();
+            return branchId.HasValue
+                ? all.Where(o => o.BranchId == branchId.Value).ToList()
+                : all;
         }
 
         public BarOnlineOrderItem PlaceOnlineOrder(OnlinePlaceOrderRequest request)
@@ -414,10 +455,15 @@ namespace E_Coffee.Services
             return true;
         }
 
-        public List<BarOrderHistoryItem> GetOrderHistory()
+        public List<BarOrderHistoryItem> GetOrderHistory(int? branchId = null)
         {
-            return _orderRepo.GetOrderHistory();
+            var all = _orderRepo.GetOrderHistory();
+            return branchId.HasValue
+                ? all.Where(h => h.BranchId == branchId.Value).ToList()
+                : all;
         }
+
+        public Branch? GetBranchById(int id) => _branchRepo.GetById(id);
 
         public bool CancelOnlineOrder(string orderId, string reason)
         {
@@ -700,6 +746,17 @@ namespace E_Coffee.Services
         // --- Voucher CRUD ---
         public List<Voucher> GetAllVouchers() => _voucherRepo.GetAll(includeInactive: true);
 
+        /// <summary>
+        /// branchId = null  → Admin: tất cả voucher (global + mọi trụ sở)
+        /// branchId = X     → voucher global (null) + voucher trụ sở X
+        /// </summary>
+        public List<Voucher> GetVouchersByBranch(int? branchId)
+        {
+            var all = _voucherRepo.GetAll(includeInactive: true);
+            if (!branchId.HasValue) return all; // Admin xem tất cả
+            return all.Where(v => v.BranchId == null || v.BranchId == branchId.Value).ToList();
+        }
+
         public void SaveVoucher(VoucherSaveDto dto)
         {
             var voucher = new Voucher
@@ -710,7 +767,8 @@ namespace E_Coffee.Services
                 DiscountValue = dto.DiscountValue, MinOrderAmount = dto.MinOrderAmount,
                 MaxDiscountAmount = dto.MaxDiscountAmount,
                 StartDate = dto.StartDate, EndDate = dto.EndDate,
-                IsActive = dto.IsActive, UsageLimit = dto.UsageLimit
+                IsActive = dto.IsActive, UsageLimit = dto.UsageLimit,
+                BranchId = dto.BranchId   // giữ BranchId từ DTO (server có thể override trước khi gọi)
             };
             if (dto.Id == 0) _voucherRepo.Add(voucher);
             else _voucherRepo.Update(voucher);
@@ -718,6 +776,68 @@ namespace E_Coffee.Services
 
         public void DeleteVoucher(int id) => _voucherRepo.Delete(id);
         public void ToggleVoucherStatus(int id) => _voucherRepo.ToggleStatus(id);
+
+        // --- Branch Price Override ---
+        public List<BranchProductPrice> GetBranchProductPrices(int branchId)
+            => _context.BranchProductPrices.Where(p => p.BranchId == branchId).ToList();
+
+        public void SaveBranchProductPrice(BranchProductPriceSaveDto dto)
+        {
+            var existing = _context.BranchProductPrices
+                .FirstOrDefault(p => p.BranchId == dto.BranchId && p.ProductId == dto.ProductId);
+
+            if (existing != null)
+            {
+                existing.BasePrice  = dto.BasePrice;
+                existing.PromoPrice = dto.PromoPrice;
+                existing.Note       = dto.Note;
+                existing.UpdatedAt  = DateTime.Now;
+            }
+            else
+            {
+                _context.BranchProductPrices.Add(new BranchProductPrice
+                {
+                    BranchId  = dto.BranchId,
+                    ProductId = dto.ProductId,
+                    BasePrice  = dto.BasePrice,
+                    PromoPrice = dto.PromoPrice,
+                    Note       = dto.Note,
+                    UpdatedAt  = DateTime.Now
+                });
+            }
+
+            // Ghi lịch sử giá
+            var product = _context.Products.FirstOrDefault(p => p.Id == dto.ProductId);
+            if (product != null)
+            {
+                var hist = new ProductPriceHistory
+                {
+                    Id          = (_context.PriceHistories.Count == 0 ? 1 : _context.PriceHistories.Max(h => h.Id)) + 1,
+                    ProductId   = dto.ProductId,
+                    ProductName = product.Name,
+                    OldBasePrice = existing?.BasePrice ?? product.BasePrice,
+                    NewBasePrice = dto.BasePrice,
+                    OldPromoPrice = existing?.PromoPrice ?? product.PromoPrice,
+                    NewPromoPrice = dto.PromoPrice,
+                    OldCostPrice = product.CostPrice,
+                    NewCostPrice = product.CostPrice,
+                    ChangedAt   = DateTime.Now,
+                    ChangedBy   = "Manager",
+                    Reason      = $"[Branch #{dto.BranchId}] {(string.IsNullOrWhiteSpace(dto.Note) ? "Điều chỉnh giá trụ sở" : dto.Note)}"
+                };
+                _context.PriceHistories.Add(hist);
+            }
+        }
+
+        public void DeleteBranchProductPrice(int branchId, int productId)
+        {
+            var item = _context.BranchProductPrices
+                .FirstOrDefault(p => p.BranchId == branchId && p.ProductId == productId);
+            if (item != null)
+                _context.BranchProductPrices.Remove(item);
+        }
+
+
 
         // =====================================================================
         // AUTHENTICATION & USER MANAGEMENT

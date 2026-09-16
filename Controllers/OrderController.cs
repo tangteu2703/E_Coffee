@@ -57,6 +57,14 @@ namespace E_Coffee.Controllers
             return Json(products);
         }
 
+        // GET: /Order/GetBranches — Danh sách trụ sở cho modal chọn hình thức phục vụ
+        [HttpGet]
+        public IActionResult GetBranches()
+        {
+            var branches = _catalogService.GetBranches();
+            return Json(branches);
+        }
+
         [HttpGet]
         public IActionResult GetProductDetail(int id)
         {

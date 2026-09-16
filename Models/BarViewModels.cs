@@ -24,6 +24,9 @@ namespace E_Coffee.Models
         public string CustomerNote { get; set; } = string.Empty;
         public DateTime? OccupiedTime { get; set; }
         public List<CartItem> Items { get; set; } = new();
+        /// <summary>Trụ sở mà bàn này thuộc về</summary>
+        public int BranchId { get; set; } = 1;
+        public string BranchName { get; set; } = string.Empty;
 
         public decimal TotalAmount => Items.Sum(i => i.SubTotal);
         public int ItemCount => Items.Sum(i => i.Quantity);
@@ -65,6 +68,9 @@ namespace E_Coffee.Models
         public string CustomerNote { get; set; } = string.Empty;
         public string CancelReason { get; set; } = string.Empty;
         public DateTime? PaidAt { get; set; }
+        /// <summary>Trụ sở tiếp nhận đơn này</summary>
+        public int? BranchId { get; set; } = null;
+        public string BranchName { get; set; } = string.Empty;
 
         public decimal TotalAmount => Items.Sum(i => i.SubTotal);
         public int ItemCount => Items.Sum(i => i.Quantity);
@@ -98,6 +104,8 @@ namespace E_Coffee.Models
         public string CancelReason { get; set; } = string.Empty;
         public int ItemCount { get; set; }
         public string TableOrOrderId { get; set; } = string.Empty; // Bàn X hoặc #ORD-xxx
+        public int? BranchId { get; set; } = null;
+        public string BranchName { get; set; } = string.Empty;
         public List<BarHistoryItemDetail> Items { get; set; } = new();
     }
 
@@ -114,6 +122,15 @@ namespace E_Coffee.Models
         public List<Category> Categories { get; set; } = new();
         public List<Product> Products { get; set; } = new();
         public List<BarOrderHistoryItem> OrderHistory { get; set; } = new();
+
+        // === Branch Context ===
+        /// <summary>ID trụ sở đang xem. null = Admin xem tất cả.</summary>
+        public int? ActiveBranchId { get; set; } = null;
+        public string ActiveBranchName { get; set; } = "Tất cả trụ sở";
+        /// <summary>Danh sách trụ sở để Admin có thể switch (Staff/Manager thì list rỗng).</summary>
+        public List<Branch> AvailableBranches { get; set; } = new();
+        public bool IsAdminView { get; set; } = false;
+
         public int EmptyTableCount => Tables.Count(t => t.Status == BarTableStatus.Empty);
         public int OccupiedTableCount => Tables.Count(t => t.Status == BarTableStatus.Occupied);
         public int PendingOnlineOrderCount => OnlineOrders.Count(o => o.Status == BarOnlineOrderStatus.Pending || o.Status == BarOnlineOrderStatus.Preparing);

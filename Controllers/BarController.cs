@@ -18,22 +18,55 @@ namespace E_Coffee.Controllers
         // GET: /Bar
         public IActionResult Index()
         {
-            var categories = _catalogService.GetCategories();
-            var products = _catalogService.GetProducts();
-            var tables = _catalogService.GetBarTables();
-            var onlineOrders = _catalogService.GetBarOnlineOrders();
-            var orderHistory = _catalogService.GetOrderHistory();
+            var isAdmin = User.IsInRole("Admin");
+
+            // Đọc trụ sở đang active từ Session
+            // Admin: có thể null (xem tất cả) hoặc đã chọn 1 trụ sở qua SwitchBranch
+            // Staff/Manager: luôn có giá trị cố định từ lúc login
+            int? activeBranchId = HttpContext.Session.GetInt32("ActiveBranchId");
+
+            var categories    = _catalogService.GetCategories();
+            var products      = _catalogService.GetProductsWithBranchPrice(activeBranchId);
+            var tables        = _catalogService.GetBarTables(activeBranchId);
+            var onlineOrders  = _catalogService.GetBarOnlineOrders(activeBranchId);
+            var orderHistory  = _catalogService.GetOrderHistory(activeBranchId);
+
+            // Thông tin trụ sở đang xem
+            string activeBranchName = "Tất cả trụ sở";
+            if (activeBranchId.HasValue)
+            {
+                var activeBranch = _catalogService.GetBranchById(activeBranchId.Value);
+                activeBranchName = activeBranch?.ShortName ?? activeBranch?.Name ?? "Trụ sở #" + activeBranchId;
+            }
 
             var vm = new BarPageViewModel
             {
-                Categories = categories,
-                Products = products,
-                Tables = tables,
-                OnlineOrders = onlineOrders,
-                OrderHistory = orderHistory
+                Categories       = categories,
+                Products         = products,
+                Tables           = tables,
+                OnlineOrders     = onlineOrders,
+                OrderHistory     = orderHistory,
+                ActiveBranchId   = activeBranchId,
+                ActiveBranchName = activeBranchName,
+                IsAdminView      = isAdmin,
+                // Admin mới thấy danh sách để switch; Staff/Manager list rỗng
+                AvailableBranches = isAdmin ? _catalogService.GetBranches() : new()
             };
 
             return View(vm);
+        }
+
+        // POST: /Bar/SwitchBranch — Chỉ Admin mới được dùng
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public IActionResult SwitchBranch(int? branchId)
+        {
+            if (branchId.HasValue && branchId.Value > 0)
+                HttpContext.Session.SetInt32("ActiveBranchId", branchId.Value);
+            else
+                HttpContext.Session.Remove("ActiveBranchId"); // Reset về "Tất cả"
+
+            return RedirectToAction("Index");
         }
 
         // AJAX API: Lấy danh sách danh mục
@@ -44,15 +77,16 @@ namespace E_Coffee.Controllers
             return Json(categories);
         }
 
-        // AJAX API: Lấy danh sách sản phẩm theo bộ lọc
+        // AJAX API: Lấy danh sách sản phẩm theo bộ lọc — áp giá trụ sở đang active
         [HttpGet]
         public IActionResult GetProducts(int categoryId = 0, string search = "")
         {
-            var products = _catalogService.GetProducts(categoryId, search);
+            int? activeBranchId = HttpContext.Session.GetInt32("ActiveBranchId");
+            var products = _catalogService.GetProductsWithBranchPrice(activeBranchId, categoryId, search);
             return Json(products);
         }
 
-        // AJAX API: Lấy chi tiết một sản phẩm (gồm Topping, Size...)
+        // AJAX API: Lấy chi tiết một sản phẩm (gồm Topping, Size...) — áp giá trụ sở
         [HttpGet]
         public IActionResult GetProductDetail(int id)
         {
@@ -61,6 +95,20 @@ namespace E_Coffee.Controllers
             {
                 return NotFound(new { success = false, message = "Không tìm thấy sản phẩm" });
             }
+
+            // Apply branch price override nếu đang xem 1 trụ sở cụ thể
+            int? activeBranchId = HttpContext.Session.GetInt32("ActiveBranchId");
+            if (activeBranchId.HasValue)
+            {
+                var overrides = _catalogService.GetBranchProductPrices(activeBranchId.Value);
+                var ov = overrides.FirstOrDefault(b => b.ProductId == id);
+                if (ov != null)
+                {
+                    product.BasePrice  = ov.BasePrice;
+                    product.PromoPrice = ov.PromoPrice;
+                }
+            }
+
             return Json(product);
         }
 

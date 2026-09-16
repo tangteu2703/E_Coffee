@@ -29,6 +29,8 @@ namespace E_Coffee.Models
         public string RoleDisplayName { get; set; } = "Quản Trị Viên";
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
+        /// <summary>ID trụ sở của nhân viên. null = Admin có quyền xem tất cả.</summary>
+        public int? BranchId { get; set; } = null;
         public string Branch { get; set; } = "Hoàng Gia - Trụ sở chính";
         public string Avatar { get; set; } = "";
         public bool IsActive { get; set; } = true;

@@ -8,7 +8,7 @@
 const ECoffeeAnalytics = (() => {
 
     // ── State ────────────────────────────────────────────────────────────────────
-    let _state = { fromDate:'', toDate:'', groupBy:'day', channel:'all', activeView:'all' };
+    let _state = { fromDate:'', toDate:'', groupBy:'day', channel:'all', activeView:'all', activeBranchName:'' };
 
     // ── Chart instances ──────────────────────────────────────────────────────────
     let _comboChart = null;
@@ -33,11 +33,12 @@ const ECoffeeAnalytics = (() => {
 
     function _readState() {
         try {
-            const d     = JSON.parse(document.getElementById('anInitData').textContent);
-            _state.fromDate = d.fromDate || '';
-            _state.toDate   = d.toDate   || '';
-            _state.groupBy  = d.groupBy  || 'day';
-            _state.channel  = d.channel  || 'all';
+            const d          = JSON.parse(document.getElementById('anInitData').textContent);
+            _state.fromDate  = d.fromDate  || '';
+            _state.toDate    = d.toDate    || '';
+            _state.groupBy   = d.groupBy   || 'day';
+            _state.channel   = d.channel   || 'all';
+            _state.activeBranchName = d.activeBranchName || '';
         } catch(e) { console.warn('anInitData parse error', e); }
     }
 
@@ -279,6 +280,11 @@ const ECoffeeAnalytics = (() => {
             _updateDonutChart(resp.categoryData);
             _updateTopProducts(resp.topProducts);
             _updateDetailTable(resp.detailRows);
+            // Cập nhật branch label nếu server trả về (nhất quán sau AJAX)
+            if (resp.activeBranchName) {
+                const lbl = document.getElementById('anBranchLabel');
+                if (lbl) lbl.textContent = resp.activeBranchName;
+            }
         })
         .catch(err => {
             console.error(err);

@@ -24,7 +24,15 @@ namespace E_Coffee.Models
         public int? UsageLimit { get; set; }
         public int UsedCount { get; set; } = 0;
 
+        /// <summary>
+        /// null  = Voucher toàn hệ thống (Admin tạo, áp dụng mọi nơi).
+        /// Có giá trị = Voucher riêng trụ sở đó (Manager tạo, chỉ dùng được tại trụ sở đó).
+        /// </summary>
+        public int? BranchId { get; set; } = null;
+
         // Validity helpers
+        public bool IsBranchScoped => BranchId.HasValue;
+
         public bool IsExpired => EndDate.HasValue && DateTime.Now > EndDate.Value;
         public bool IsUpcoming => StartDate.HasValue && DateTime.Now < StartDate.Value;
         public bool IsDepleted => UsageLimit.HasValue && UsedCount >= UsageLimit.Value;

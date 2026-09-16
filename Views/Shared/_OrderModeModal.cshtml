@@ -1,6 +1,6 @@
 <!-- Order Mode & Customer Identification Modal -->
 <div class="modal-overlay" id="orderModeModal">
-    <div class="modal-content" style="max-width: 480px;">
+    <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header py-2.5 px-3">
             <div class="modal-title fs-6 fw-bold">
                 <i class="bi bi-geo-alt-fill text-danger me-1"></i> Chọn Hình Thức Phục Vụ
@@ -24,12 +24,15 @@
                 </button>
             </div>
 
-            <!-- Fields for At-Table Order (QR Code) -->
+            <!-- ════════════════════════════════════════════════════════
+                 TAB 1: Fields for At-Table Order (QR Code)
+                 Trụ sở xác định từ mã QR → không cần chọn
+                 ════════════════════════════════════════════════════════ -->
             <div id="sectionAtTableFields">
                 <div style="background: var(--primary-light); padding: 0.65rem 0.85rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.8rem; color: var(--primary-dark); display: flex; gap: 0.6rem; align-items: flex-start;">
                     <i class="bi bi-qr-code-scan" style="font-size: 1.1rem; color: var(--primary);"></i>
                     <div>
-                        <strong>Phục vụ tại bàn qua QR:</strong> Hệ thống tự động xác định vị trí bàn. Quý khách vui lòng nhập tên và số điện thoại để Barista mang nước tới bàn.
+                        <strong>Phục vụ tại bàn qua QR:</strong> Hệ thống tự động xác định <strong>chi nhánh & số bàn</strong> từ mã QR. Quý khách chỉ cần nhập tên và số điện thoại.
                     </div>
                 </div>
 
@@ -49,20 +52,69 @@
                 </div>
             </div>
 
-            <!-- Fields for Delivery Order -->
+            <!-- ════════════════════════════════════════════════════════
+                 TAB 2: Fields for Delivery Order (Giao tận nơi)
+                 ════════════════════════════════════════════════════════ -->
             <div id="sectionDeliveryFields" style="display: none;">
+                <!-- Info Banner -->
                 <div style="background: var(--accent-light); padding: 0.65rem 0.85rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.8rem; color: var(--secondary); display: flex; gap: 0.6rem; align-items: flex-start;">
                     <i class="bi bi-truck" style="font-size: 1.1rem; color: var(--accent);"></i>
                     <div>
-                        <strong>Order Online Giao Hàng:</strong> Đơn hàng sẽ được đánh mã theo <strong>Số điện thoại</strong> để Shipper giao tận nơi.
+                        <strong>Order Giao Hàng:</strong> Nhập địa chỉ để hệ thống gợi ý <strong>trụ sở gần nhất</strong> xử lý đơn. Shipper sẽ giao tận nơi theo mã SĐT.
                     </div>
                 </div>
 
+                <!-- ① Địa chỉ giao hàng + nút GPS -->
                 <div class="form-group mb-2.5">
-                    <label class="form-label mb-1" style="font-size: 0.8rem;">Địa chỉ giao hàng (*)</label>
-                    <input type="text" id="inputAddress" class="form-control form-control-sm py-1.5" placeholder="Số nhà, Tên đường..." value="Trạm phát sóng, Phùng Chí Kiên, HY">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">
+                        Địa chỉ giao hàng (*)
+                        <span id="gpsStatusDelivery" class="ms-1 text-muted" style="font-size: 0.72rem; display: none;"></span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="inputAddress"
+                               class="form-control form-control-sm py-1.5"
+                               placeholder="Số nhà, Tên đường, Quận, Thành phố..."
+                               oninput="ECoffee.onDeliveryAddressInput()"
+                               value="">
+                        <button class="btn btn-outline-secondary btn-sm px-2" type="button"
+                                id="btnGpsDelivery"
+                                onclick="ECoffee.getGpsLocation('delivery')"
+                                title="Lấy vị trí hiện tại từ GPS">
+                            <i class="bi bi-crosshair2 text-danger"></i>
+                            <span class="d-none d-sm-inline ms-1" style="font-size: 0.72rem;">Vị trí hiện tại</span>
+                        </button>
+                    </div>
+                    <div id="gpsHintDelivery" class="text-muted mt-1" style="font-size: 0.71rem; display: none;">
+                        <i class="bi bi-info-circle me-1"></i>Địa chỉ đã được điền từ GPS, bạn có thể chỉnh sửa cho chính xác hơn.
+                    </div>
                 </div>
 
+                <!-- ② Gợi ý trụ sở gần nhất (auto-select) -->
+                <div class="form-group mb-2.5">
+                    <label class="form-label mb-1" style="font-size: 0.8rem;">
+                        <i class="bi bi-shop text-danger me-1"></i>Trụ sở tiếp nhận đơn
+                        <span id="nearestBranchBadgeDelivery" class="badge bg-success-subtle text-success ms-1 fw-semibold" style="font-size: 0.65rem; display: none;">Gần nhất</span>
+                    </label>
+                    <select id="selectBranchDelivery" class="form-control form-control-sm py-1.5" onchange="ECoffee.onBranchSelectDelivery()">
+                        <option value="">-- Nhập địa chỉ để gợi ý trụ sở gần nhất --</option>
+                    </select>
+                    <div id="branchInfoDelivery" class="mt-1 px-2 py-1.5 rounded-2" style="font-size: 0.72rem; display: none; background: #f8f9fa; border: 1px solid #dee2e6;">
+                        <div class="d-flex align-items-center gap-1.5">
+                            <i class="bi bi-geo-alt-fill text-danger flex-shrink-0"></i>
+                            <div>
+                                <span id="branchInfoAddressDelivery" class="text-muted"></span>
+                                &nbsp;·&nbsp;
+                                <span id="branchInfoPhoneDelivery" class="text-primary font-monospace"></span>
+                                &nbsp;·&nbsp;
+                                <span id="branchInfoHoursDelivery" class="text-secondary"></span>
+                                &nbsp;·&nbsp;
+                                <span id="branchInfoDistDelivery" class="fw-bold text-success"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ③ Thông tin người nhận -->
                 <div class="form-group mb-2.5">
                     <label class="form-label mb-1" style="font-size: 0.8rem;">Họ và Tên người nhận (*)</label>
                     <input type="text" id="inputCustNameDelivery" class="form-control form-control-sm py-1.5" placeholder="Nhập tên người nhận...">
@@ -74,17 +126,54 @@
                 </div>
             </div>
 
-            <!-- Fields for Pickup Order -->
+            <!-- ════════════════════════════════════════════════════════
+                 TAB 3: Fields for Pickup Order (Đến lấy / Mang đi)
+                 ════════════════════════════════════════════════════════ -->
             <div id="sectionPickupFields" style="display: none;">
-                <div class="form-group mb-2">
-                    <label class="form-label mb-1" style="font-size: 0.8rem;">Chọn cửa hàng đến lấy</label>
-                    <select class="form-control form-control-sm py-1.5">
-                        <option>Hoàng Gia Coffee - Vincom Center Q.1</option>
-                        <option>Hoàng Gia Coffee - Landmark 81</option>
-                        <option>Hoàng Gia Coffee - Bitexco Tower</option>
-                        <option>Hoàng Gia Coffee - Crescent Mall Q.7</option>
-                    </select>
+                <!-- Info Banner -->
+                <div style="background: #f0fdf4; padding: 0.65rem 0.85rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.8rem; color: #166534; display: flex; gap: 0.6rem; align-items: flex-start;">
+                    <i class="bi bi-bag-check-fill" style="font-size: 1.1rem; color: #16a34a;"></i>
+                    <div>
+                        <strong>Đến Lấy / Mang Đi:</strong> Chọn trụ sở bạn muốn đến lấy. Dùng nút <strong>GPS</strong> để tìm chi nhánh gần bạn nhất.
+                    </div>
                 </div>
+
+                <!-- ① Nút GPS + Label -->
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <label class="form-label mb-0" style="font-size: 0.8rem;">
+                        <i class="bi bi-shop text-success me-1"></i>Chọn cửa hàng đến lấy
+                        <span id="nearestBranchBadgePickup" class="badge bg-success-subtle text-success ms-1 fw-semibold" style="font-size: 0.65rem; display: none;">Gần nhất</span>
+                    </label>
+                    <button class="btn btn-sm btn-outline-secondary px-2 py-1" type="button"
+                            id="btnGpsPickup"
+                            onclick="ECoffee.getGpsLocation('pickup')"
+                            title="Tìm chi nhánh gần tôi nhất">
+                        <i class="bi bi-crosshair2 text-danger"></i>
+                        <span class="ms-1" style="font-size: 0.72rem;">Gần tôi nhất</span>
+                    </button>
+                </div>
+
+                <!-- ② Danh sách trụ sở (combobox) -->
+                <div class="form-group mb-2.5">
+                    <select id="selectBranchPickup" class="form-control form-control-sm py-1.5" onchange="ECoffee.onBranchSelectPickup()">
+                        <option value="">-- Đang tải danh sách chi nhánh... --</option>
+                    </select>
+                    <div id="branchInfoPickup" class="mt-1 px-2 py-1.5 rounded-2" style="font-size: 0.72rem; display: none; background: #f0fdf4; border: 1px solid #bbf7d0;">
+                        <div class="d-flex align-items-center gap-1.5">
+                            <i class="bi bi-geo-alt-fill text-success flex-shrink-0"></i>
+                            <div>
+                                <span id="branchInfoAddressPickup" class="text-muted"></span>
+                                &nbsp;·&nbsp;
+                                <span id="branchInfoPhonePickup" class="text-primary font-monospace"></span>
+                                &nbsp;·&nbsp;
+                                <span id="branchInfoHoursPickup" class="text-secondary"></span>
+                                <span id="branchInfoDistPickup" class="fw-bold text-success ms-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="gpsStatusPickup" class="text-muted" style="font-size: 0.72rem; display: none;"></div>
             </div>
         </div>
 

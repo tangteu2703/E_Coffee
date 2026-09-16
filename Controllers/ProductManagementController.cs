@@ -23,19 +23,121 @@ namespace E_Coffee.Controllers
             _webHostEnvironment = webHostEnvironment;
         }
 
+        // ─── Helpers ──────────────────────────────────────────────────────────
+        private int? GetActiveBranchId()
+        {
+            if (!User.IsInRole("Admin"))
+            {
+                var claimVal = User.FindFirst("BranchId")?.Value;
+                return int.TryParse(claimVal, out var cid) ? cid : (int?)null;
+            }
+            return HttpContext.Session.GetInt32("ActiveBranchId");
+        }
+
+        private string ResolveBranchName(int? branchId)
+        {
+            if (!branchId.HasValue) return "Tất cả trụ sở";
+            var b = _catalogService.GetBranchById(branchId.Value);
+            return b?.ShortName ?? b?.Name ?? $"Trụ sở #{branchId}";
+        }
+
         // GET: /ProductManagement
         public IActionResult Index(string tab = "products")
         {
+            var isAdmin    = User.IsInRole("Admin");
+            var branchId   = GetActiveBranchId();
+
             var vm = _catalogService.GetProductManagementViewModel();
-            vm.ActiveTab = tab;
-            ViewData["Title"] = "Quản Lý Sản Phẩm & Menu";
+            vm.ActiveTab      = tab;
+            vm.IsAdminView    = isAdmin;
+            vm.ActiveBranchId = branchId;
+            vm.ActiveBranchName   = ResolveBranchName(branchId);
+            vm.AvailableBranches  = isAdmin ? _catalogService.GetBranches() : new();
+
+            // Voucher: Admin xem tất cả, Manager chỉ thấy global + trụ sở mình
+            vm.Vouchers = _catalogService.GetVouchersByBranch(branchId);
+
+            // Giá override: load nếu đang xem 1 trụ sở cụ thể
+            if (branchId.HasValue)
+                vm.BranchPriceOverrides = _catalogService.GetBranchProductPrices(branchId.Value);
+
+            // Manager: default vào tab products-price (chỉ 2 tabs có)
+            if (!isAdmin && tab == "products")
+                vm.ActiveTab = "products";
+
+            ViewData["Title"] = isAdmin ? "Quản Lý Sản Phẩm & Menu" : $"Giá & Voucher – {vm.ActiveBranchName}";
             return View(vm);
         }
 
+        // POST: /ProductManagement/SwitchBranch — Admin only
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public IActionResult SwitchBranch(int? branchId)
+        {
+            if (branchId.HasValue && branchId.Value > 0)
+                HttpContext.Session.SetInt32("ActiveBranchId", branchId.Value);
+            else
+                HttpContext.Session.Remove("ActiveBranchId");
+
+            return RedirectToAction("Index");
+        }
+
         // =====================================================================
-        // API AJAX – PRODUCT
+        // API AJAX – BRANCH PRICE OVERRIDE (Manager & Admin)
         // =====================================================================
         [HttpGet]
+        public IActionResult GetBranchPrices()
+        {
+            var branchId = GetActiveBranchId();
+            if (!branchId.HasValue)
+                return Json(new { success = true, data = new List<object>() }); // Admin xem tổng hợp: không có override nào
+            var prices = _catalogService.GetBranchProductPrices(branchId.Value);
+            return Json(new { success = true, data = prices, branchId = branchId.Value });
+        }
+
+        [HttpPost]
+        public IActionResult SaveBranchPrice([FromBody] BranchProductPriceSaveDto dto)
+        {
+            if (dto == null || dto.ProductId <= 0 || dto.BasePrice <= 0)
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ" });
+
+            // Bảo mật: server tự gán BranchId từ Session — không tin client
+            var branchId = GetActiveBranchId();
+            if (!branchId.HasValue)
+                return BadRequest(new { success = false, message = "Vui lòng chọn trụ sở trước khi đặt giá" });
+
+            dto.BranchId = branchId.Value;
+
+            try
+            {
+                _catalogService.SaveBranchProductPrice(dto);
+                return Json(new { success = true, message = "Đã lưu giá trụ sở!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult DeleteBranchPrice([FromBody] IdRequest req)
+        {
+            var branchId = GetActiveBranchId();
+            if (!branchId.HasValue)
+                return BadRequest(new { success = false, message = "Không xác định được trụ sở" });
+
+            _catalogService.DeleteBranchProductPrice(branchId.Value, req.Id);
+            return Json(new { success = true, message = "Đã xóa giá override — sẽ dùng giá mặc định" });
+        }
+
+
+
+
+        // =====================================================================
+        // API AJAX – PRODUCT (Admin only: CRUD)
+        // =====================================================================
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
         public IActionResult GetProductDetail(int id)
         {
             var product = _catalogService.GetProductById(id);
@@ -44,6 +146,7 @@ namespace E_Coffee.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public IActionResult SaveProduct([FromBody] ProductSaveDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
@@ -53,18 +156,21 @@ namespace E_Coffee.Controllers
                 _catalogService.SaveProduct(dto);
                 return Json(new { success = true, message = dto.Id == 0 ? "Thêm sản phẩm thành công!" : "Cập nhật sản phẩm thành công!" });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public IActionResult DeleteProduct([FromBody] IdRequest req)
         {
             _catalogService.DeleteProduct(req.Id);
             return Json(new { success = true, message = "Đã xóa sản phẩm" });
         }
+
+
 
         [HttpPost]
         public IActionResult ToggleProductStatus([FromBody] IdRequest req)
@@ -157,9 +263,20 @@ namespace E_Coffee.Controllers
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Code))
                 return BadRequest(new { success = false, message = "Mã voucher không được để trống" });
+
+            // Bảo mật: nếu là Manager → bắt buộc gắn BranchId trụ sở mình
+            if (!User.IsInRole("Admin"))
+            {
+                var branchId = GetActiveBranchId();
+                if (!branchId.HasValue)
+                    return BadRequest(new { success = false, message = "Không xác định được trụ sở" });
+                dto.BranchId = branchId.Value; // server override, không tin client
+            }
+
             _catalogService.SaveVoucher(dto);
             return Json(new { success = true, message = dto.Id == 0 ? "Thêm voucher thành công!" : "Cập nhật voucher thành công!" });
         }
+
 
         [HttpPost]
         public IActionResult DeleteVoucher([FromBody] IdRequest req)

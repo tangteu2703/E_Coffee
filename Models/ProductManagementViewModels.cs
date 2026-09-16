@@ -73,7 +73,43 @@ namespace E_Coffee.Models
 
         // Category items count lookup
         public Dictionary<int, int> CategoryProductCount { get; set; } = new();
+
+        // === Branch Context ===
+        /// <summary>true = Admin (full CRUD, dropdown switch). false = Manager (giá + voucher trụ sở mình).</summary>
+        public bool IsAdminView { get; set; } = false;
+
+        /// <summary>null = Admin đang xem tổng hợp (giá global). Có giá trị = đang xem/là trụ sở cụ thể.</summary>
+        public int? ActiveBranchId { get; set; } = null;
+        public string ActiveBranchName { get; set; } = "Tất cả trụ sở";
+
+        /// <summary>Dropdown switch cho Admin. Rỗng nếu là Manager.</summary>
+        public List<Branch> AvailableBranches { get; set; } = new();
+
+        /// <summary>
+        /// Giá override theo trụ sở đang xem.
+        /// Admin xem 1 trụ sở → load overrides của trụ sở đó.
+        /// Manager → luôn load overrides của trụ sở mình.
+        /// Admin xem "Tất cả" → rỗng (hiển thị giá global).
+        /// </summary>
+        public List<BranchProductPrice> BranchPriceOverrides { get; set; } = new();
+
+        // Helper: lấy giá effective tại trụ sở hiện tại cho 1 sản phẩm
+        public decimal GetEffectiveBasePrice(int productId, decimal globalBasePrice)
+        {
+            var override_ = BranchPriceOverrides.FirstOrDefault(b => b.ProductId == productId);
+            return override_?.BasePrice ?? globalBasePrice;
+        }
+
+        public decimal? GetEffectivePromoPrice(int productId, decimal? globalPromoPrice)
+        {
+            var override_ = BranchPriceOverrides.FirstOrDefault(b => b.ProductId == productId);
+            return override_ != null ? override_.PromoPrice : globalPromoPrice;
+        }
+
+        public bool HasBranchOverride(int productId)
+            => BranchPriceOverrides.Any(b => b.ProductId == productId);
     }
+
 
     // =========================================================================
     // DTO CHO THÊM / SỬA SẢN PHẨM
@@ -135,7 +171,15 @@ namespace E_Coffee.Models
         public DateTime? EndDate { get; set; }
         public bool IsActive { get; set; } = true;
         public int? UsageLimit { get; set; }
+
+        /// <summary>
+        /// Được override bởi server (từ Session) nếu caller là Manager.
+        /// Client gửi lên chỉ dùng khi Admin muốn tạo voucher cho trụ sở cụ thể.
+        /// null = voucher toàn hệ thống.
+        /// </summary>
+        public int? BranchId { get; set; } = null;
     }
+
 
     // =========================================================================
     // DTO CẬP NHẬT NHANH GIÁ & GIÁ VỐN

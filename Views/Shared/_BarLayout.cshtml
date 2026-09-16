@@ -63,6 +63,14 @@
                                 <i class="bi bi-shop me-1.5"></i>Quản lý sản phẩm
                             </a>
                         </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                        <li class="nav-item">
+                            <a href="/UserManagement" class="nav-link btn-sm fw-bold px-3 py-1.5 rounded-pill @(ViewContext.RouteData.Values["controller"]?.ToString() == "UserManagement" ? "active bg-danger text-white" : "text-secondary")">
+                                <i class="bi bi-shield-lock-fill me-1.5"></i>Tài khoản &amp; Trụ sở
+                            </a>
+                        </li>
+                        }
                     }
                 </ul>
             </div>
@@ -97,6 +105,10 @@
                             {
                                 <li><a class="dropdown-item small" href="/Analytics"><i class="bi bi-graph-up-arrow me-2 text-danger"></i>Thống kê doanh thu</a></li>
                                 <li><a class="dropdown-item small" href="/ProductManagement"><i class="bi bi-shop me-2 text-warning-emphasis"></i>Quản lý sản phẩm</a></li>
+                                @if (User.IsInRole("Admin"))
+                                {
+                                <li><a class="dropdown-item small" href="/UserManagement"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Tài khoản &amp; Trụ sở</a></li>
+                                }
                             }
                             <li><a class="dropdown-item small" href="/Bar"><i class="bi bi-display me-2 text-primary"></i>Màn hình Quầy Bar</a></li>
                             <li><hr class="dropdown-divider"></li>

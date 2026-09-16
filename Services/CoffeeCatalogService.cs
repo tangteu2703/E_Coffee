@@ -874,5 +874,195 @@ namespace E_Coffee.Services
         {
             get => _context.PriceHistories;
         }
+
+        // =====================================================================
+        // USER MANAGEMENT (Admin only)
+        // =====================================================================
+
+        public UserManagementIndexViewModel GetUserManagementViewModel()
+        {
+            return new UserManagementIndexViewModel
+            {
+                Users = _context.Users.OrderBy(u => u.Id).ToList(),
+                Branches = _context.Branches.OrderBy(b => b.Id).ToList()
+            };
+        }
+
+        public AppUser? GetUserById(int id) =>
+            _context.Users.FirstOrDefault(u => u.Id == id);
+
+        public (bool Success, string Message) SaveUser(UserSaveDto dto)
+        {
+            // Kiểm tra username trùng
+            var duplicateUsername = _context.Users.Any(u =>
+                u.Username.ToLower() == dto.Username.ToLower().Trim() && u.Id != dto.Id);
+            if (duplicateUsername)
+                return (false, $"Tên đăng nhập '{dto.Username}' đã tồn tại");
+
+            // Kiểm tra email trùng (nếu có)
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                var duplicateEmail = _context.Users.Any(u =>
+                    u.Email.ToLower() == dto.Email.ToLower().Trim() && u.Id != dto.Id);
+                if (duplicateEmail)
+                    return (false, $"Email '{dto.Email}' đã được sử dụng");
+            }
+
+            // Xác định RoleDisplayName nếu không truyền vào
+            var roleName = dto.RoleDisplayName;
+            if (string.IsNullOrWhiteSpace(roleName))
+            {
+                roleName = dto.Role switch
+                {
+                    "Admin" => "Tổng Quản Trị",
+                    "Manager" => "Quản Lý Chi Nhánh",
+                    _ => "Nhân Viên Pha Chế"
+                };
+            }
+
+            // Xác định branch name
+            var branchName = "Hoàng Gia - Tất cả trụ sở";
+            if (dto.BranchId.HasValue)
+            {
+                var branch = _context.Branches.FirstOrDefault(b => b.Id == dto.BranchId.Value);
+                branchName = branch?.ShortName ?? branchName;
+            }
+
+            if (dto.Id == 0)
+            {
+                // Tạo mới
+                var newId = _context.Users.Any() ? _context.Users.Max(u => u.Id) + 1 : 1;
+                _context.Users.Add(new AppUser
+                {
+                    Id = newId,
+                    Username = dto.Username.Trim(),
+                    Password = dto.Password?.Trim() ?? "123",
+                    FullName = dto.FullName.Trim(),
+                    Role = dto.Role,
+                    RoleDisplayName = roleName,
+                    Email = dto.Email?.Trim() ?? string.Empty,
+                    Phone = dto.Phone?.Trim() ?? string.Empty,
+                    BranchId = dto.BranchId,
+                    Branch = branchName,
+                    Avatar = dto.FullName.Trim().Length >= 2
+                        ? dto.FullName.Trim().Substring(0, 2).ToUpper()
+                        : dto.FullName.Trim().ToUpper(),
+                    IsActive = dto.IsActive
+                });
+                return (true, $"Đã tạo tài khoản '{dto.Username}' thành công");
+            }
+            else
+            {
+                var existing = _context.Users.FirstOrDefault(u => u.Id == dto.Id);
+                if (existing == null)
+                    return (false, "Không tìm thấy tài khoản cần cập nhật");
+
+                existing.Username = dto.Username.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.Password))
+                    existing.Password = dto.Password.Trim();
+                existing.FullName = dto.FullName.Trim();
+                existing.Role = dto.Role;
+                existing.RoleDisplayName = roleName;
+                existing.Email = dto.Email?.Trim() ?? existing.Email;
+                existing.Phone = dto.Phone?.Trim() ?? existing.Phone;
+                existing.BranchId = dto.BranchId;
+                existing.Branch = branchName;
+                existing.IsActive = dto.IsActive;
+                return (true, $"Đã cập nhật tài khoản '{dto.Username}' thành công");
+            }
+        }
+
+        public (bool Success, string Message) DeleteUser(int id)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Id == id);
+            if (user == null)
+                return (false, "Không tìm thấy tài khoản");
+            if (user.Role == "Admin")
+                return (false, "Không thể xoá tài khoản Admin");
+            _context.Users.Remove(user);
+            return (true, $"Đã xoá tài khoản '{user.Username}'");
+        }
+
+        public (bool Success, string Message) ToggleUserStatus(int id)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Id == id);
+            if (user == null)
+                return (false, "Không tìm thấy tài khoản");
+            if (user.Role == "Admin")
+                return (false, "Không thể khoá tài khoản Admin");
+            user.IsActive = !user.IsActive;
+            var statusText = user.IsActive ? "kích hoạt" : "tạm khoá";
+            return (true, $"Đã {statusText} tài khoản '{user.Username}'");
+        }
+
+        // =====================================================================
+        // BRANCH MANAGEMENT (Admin only)
+        // =====================================================================
+
+        public (bool Success, string Message) SaveBranch(BranchSaveDto dto)
+        {
+            if (dto.Id == 0)
+            {
+                var newId = _context.Branches.Any() ? _context.Branches.Max(b => b.Id) + 1 : 1;
+                _context.Branches.Add(new Branch
+                {
+                    Id = newId,
+                    Name = dto.Name.Trim(),
+                    ShortName = dto.ShortName.Trim(),
+                    Address = dto.Address.Trim(),
+                    District = dto.District?.Trim() ?? string.Empty,
+                    City = dto.City?.Trim() ?? string.Empty,
+                    Lat = dto.Lat,
+                    Lng = dto.Lng,
+                    Phone = dto.Phone?.Trim() ?? string.Empty,
+                    OpenHours = dto.OpenHours?.Trim() ?? "06:30 – 22:00",
+                    IsActive = dto.IsActive
+                });
+                return (true, $"Đã thêm trụ sở '{dto.Name}' thành công");
+            }
+            else
+            {
+                var existing = _context.Branches.FirstOrDefault(b => b.Id == dto.Id);
+                if (existing == null)
+                    return (false, "Không tìm thấy trụ sở cần cập nhật");
+
+                existing.Name = dto.Name.Trim();
+                existing.ShortName = dto.ShortName.Trim();
+                existing.Address = dto.Address.Trim();
+                existing.District = dto.District?.Trim() ?? existing.District;
+                existing.City = dto.City?.Trim() ?? existing.City;
+                existing.Lat = dto.Lat;
+                existing.Lng = dto.Lng;
+                existing.Phone = dto.Phone?.Trim() ?? existing.Phone;
+                existing.OpenHours = dto.OpenHours?.Trim() ?? existing.OpenHours;
+                existing.IsActive = dto.IsActive;
+                return (true, $"Đã cập nhật trụ sở '{dto.Name}' thành công");
+            }
+        }
+
+        public (bool Success, string Message) DeleteBranch(int id)
+        {
+            var branch = _context.Branches.FirstOrDefault(b => b.Id == id);
+            if (branch == null)
+                return (false, "Không tìm thấy trụ sở");
+
+            // Kiểm tra có nhân viên nào đang gắn với trụ sở này không
+            var hasUsers = _context.Users.Any(u => u.BranchId == id);
+            if (hasUsers)
+                return (false, "Trụ sở đang có nhân viên, vui lòng chuyển nhân viên trước khi xoá");
+
+            _context.Branches.Remove(branch);
+            return (true, $"Đã xoá trụ sở '{branch.Name}'");
+        }
+
+        public (bool Success, string Message) ToggleBranchStatus(int id)
+        {
+            var branch = _context.Branches.FirstOrDefault(b => b.Id == id);
+            if (branch == null)
+                return (false, "Không tìm thấy trụ sở");
+            branch.IsActive = !branch.IsActive;
+            var statusText = branch.IsActive ? "kích hoạt" : "tạm đóng";
+            return (true, $"Đã {statusText} trụ sở '{branch.Name}'");
+        }
     }
 }

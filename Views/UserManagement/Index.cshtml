@@ -1,0 +1,919 @@
+@model E_Coffee.Models.UserManagementIndexViewModel
+@{
+    ViewData["Title"] = "Quản Lý Tài Khoản & Trụ Sở";
+    Layout = "~/Views/Shared/_BarLayout.cshtml";
+    var isAccountsTab = Model.ActiveTab == "accounts";
+}
+
+@section Styles {
+    <style>
+        /* ── Inherit PM CSS variables ── */
+        :root {
+            --pm-red: #dc2626;
+            --pm-gray: #6b7280;
+            --pm-card: #ffffff;
+            --pm-border: #e5e7eb;
+            --pm-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+            --pm-shadow-md: 0 4px 16px rgba(0,0,0,.08);
+            --pm-radius: 14px;
+        }
+        /* Override pos-layout-body overflow để trang có thể scroll */
+        body.pos-layout-body { overflow: auto !important; height: auto !important; color: #111827; }
+
+        /* ── Tab Nav (giống ProductManagement) ── */
+        .pm-tab-nav { background: var(--pm-card); border-radius: var(--pm-radius); padding: .4rem; box-shadow: var(--pm-shadow); border: 1px solid var(--pm-border); display: inline-flex; gap: .25rem; }
+        .pm-tab-btn { border: none; background: transparent; border-radius: 10px; padding: .55rem 1.25rem; font-weight: 600; font-size: .85rem; color: var(--pm-gray); cursor: pointer; transition: background .16s, color .16s, box-shadow .16s; display: flex; align-items: center; gap: .4rem; white-space: nowrap; }
+        .pm-tab-btn:hover { background: #f3f4f6; color: #111827; }
+        .pm-tab-btn.active { background: var(--pm-red); color: #fff; box-shadow: 0 2px 8px rgba(220,38,38,.35); }
+        .pm-tab-btn .badge-count { background: rgba(255,255,255,.25); color: inherit; font-size: .65rem; font-weight: 700; padding: .1rem .45rem; border-radius: 20px; min-width: 22px; text-align: center; }
+        .pm-tab-btn:not(.active) .badge-count { background: #f3f4f6; color: var(--pm-gray); }
+        .pm-tab-pane { display: none; }
+        .pm-tab-pane.active { display: block; animation: fadeInUMTab .2s ease; }
+        @@keyframes fadeInUMTab { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Search Bar (giống ProductManagement) ── */
+        .pm-search-bar { background: #ffffff !important; border-radius: 14px; padding: .75rem 1rem; box-shadow: 0 4px 16px rgba(0,0,0,.14) !important; border: 1.5px solid #d1d5db !important; margin-bottom: 1rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+        .pm-search-bar .form-control, .pm-search-bar .form-select { font-size: .83rem; border-radius: 8px; border-color: #e5e7eb; background: #fff !important; color: #111827 !important; }
+        .pm-search-bar .form-control::placeholder { color: #9ca3af !important; }
+        .pm-search-bar .form-control:focus, .pm-search-bar .form-select:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
+
+        /* ── Table Wrap (giống ProductManagement) ── */
+        .pm-table-wrap { background: #ffffff !important; border-radius: 14px; border: 1.5px solid #d1d5db !important; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.14) !important; }
+        .pm-table-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #e5e7eb transparent; }
+        .pm-table-scroll::-webkit-scrollbar { width: 5px; }
+        .pm-table-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        .pm-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+        .pm-table thead th { background: #f9fafb !important; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: #6b7280 !important; padding: .7rem 1rem; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 2; }
+        .pm-table tbody td { padding: .65rem 1rem; border-bottom: 1px solid #f3f4f6; vertical-align: middle; color: #111827 !important; }
+        .pm-table tbody tr:last-child td { border-bottom: none; }
+        .pm-table tbody tr { transition: background .12s; }
+        .pm-table tbody tr:hover { background: #fafafa !important; }
+
+        /* ── KPI chips (giống ProductManagement) ── */
+        .um-kpi-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 50px;
+            padding: .25rem .85rem;
+            font-size: .78rem;
+            font-weight: 600;
+        }
+        .um-kpi-chip-val { font-size: .9rem; font-weight: 700; }
+        .um-kpi-chip-label { color: #6b7280; }
+
+        /* ── Avatar circle ── */
+        .user-avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .72rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* ── Role badge colours ── */
+        .role-admin    { background: #fee2e2; color: #dc2626; }
+        .role-manager  { background: #fef3c7; color: #d97706; }
+        .role-staff    { background: #dbeafe; color: #2563eb; }
+
+        /* ── Action Buttons (giống ProductManagement) ── */
+        .pm-action-btn { border: none; background: transparent; width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .14s, color .14s; font-size: .9rem; }
+        .pm-action-btn.edit   { color: #2563eb; }
+        .pm-action-btn.edit:hover   { background: #eff6ff; }
+        .pm-action-btn.delete { color: #dc2626; }
+        .pm-action-btn.delete:hover { background: #fef2f2; }
+        .pm-action-btn.toggle { color: #16a34a; }
+        .pm-action-btn.toggle:hover { background: #f0fdf4; }
+
+        /* ── Primary Button (giống PM) ── */
+        .btn-pm-primary { background: #dc2626; color: #fff; border: none; border-radius: 8px; padding: .35rem .85rem; font-weight: 600; font-size: .82rem; display: inline-flex; align-items: center; justify-content: center; gap: .35rem; transition: background .15s, box-shadow .15s; }
+        .btn-pm-primary:hover { background: #b91c1c; color: #fff; box-shadow: 0 3px 10px rgba(220,38,38,.25); }
+        .btn-pm-primary.btn-sm { padding: .3rem .75rem; font-size: .78rem; border-radius: 7px; }
+
+        /* ── Branch Card (chuẩn PM card style) ── */
+        .branch-card { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 1rem; transition: transform .18s, box-shadow .18s, border-color .18s; }
+        .branch-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); border-color: rgba(220,38,38,.25); }
+        .bc-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ── GPS preview box ── */
+        #gpsPreviewBox { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; }
+
+        /* pm-table-scroll height override cho UserManagement (không cần full vh) */
+        #tab-accounts .pm-table-scroll { height: auto; max-height: calc(100vh - 300px); }
+    </style>
+}
+
+<div class="container-fluid px-3 px-md-4 pb-5">
+
+    <!-- ── Page Header ── -->
+    <div class="d-flex align-items-center justify-content-between py-2 flex-wrap gap-2"
+         style="border-bottom:1px solid #f0f0f0; margin-bottom:.75rem;">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-shield-lock-fill text-danger" style="font-size:1rem;"></i>
+            <div>
+                <h1 class="fw-bold mb-0 lh-1" style="font-size:.95rem; color:#111827;">Quản Lý Tài Khoản &amp; Trụ Sở</h1>
+                <p class="text-muted mb-0" style="font-size:.72rem; margin-top:2px;">Phân quyền · Cấp tài khoản · Cấu hình trụ sở &amp; GPS</p>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <div class="um-kpi-chip">
+                <i class="bi bi-people-fill text-danger"></i>
+                <span class="um-kpi-chip-val">@Model.Users.Count</span>
+                <span class="um-kpi-chip-label">tài khoản · <b class="text-success">@Model.Users.Count(u => u.IsActive)</b> hoạt động</span>
+            </div>
+            <div class="um-kpi-chip">
+                <i class="bi bi-shop text-warning-emphasis"></i>
+                <span class="um-kpi-chip-val">@Model.Branches.Count</span>
+                <span class="um-kpi-chip-label">trụ sở · <b class="text-success">@Model.Branches.Count(b => b.IsActive)</b> đang mở</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Tab Nav (pm-tab-nav style) ── -->
+    <div class="pm-tab-nav d-inline-flex mb-3">
+        <button class="pm-tab-btn @(isAccountsTab ? "active" : "")" id="tabBtn-accounts" onclick="switchUMTab('accounts')">
+            <i class="bi bi-person-badge-fill"></i>
+            Tài Khoản
+            <span class="badge-count">@Model.Users.Count</span>
+        </button>
+        <button class="pm-tab-btn @(!isAccountsTab ? "active" : "")" id="tabBtn-branches" onclick="switchUMTab('branches')">
+            <i class="bi bi-geo-alt-fill"></i>
+            Trụ Sở
+            <span class="badge-count">@Model.Branches.Count</span>
+        </button>
+    </div>
+
+    <div id="umTabContent">
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB: TÀI KHOẢN
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="pm-tab-pane @(isAccountsTab ? "active" : "")" id="tab-accounts">
+
+            <!-- ── Search Bar (pm-search-bar style) ── -->
+        <div class="pm-search-bar">
+            <i class="bi bi-search text-muted"></i>
+            <input type="text" id="userSearch" class="form-control form-control-sm"
+                   placeholder="Tìm tên, username, email…" style="max-width:240px;">
+            <select class="form-select form-select-sm" id="roleFilter" style="max-width:160px;">
+                <option value="">Tất cả vai trò</option>
+                <option value="Admin">Admin</option>
+                <option value="Manager">Quản Lý</option>
+                <option value="Staff">Nhân Viên</option>
+            </select>
+            <div class="ms-auto">
+                <button class="btn btn-pm-primary btn-sm" onclick="UserMgmt.openUserModal(0)" id="btnAddUser">
+                    <i class="bi bi-person-plus-fill"></i>Thêm tài khoản
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Users Table (pm-table-wrap style) ── -->
+        <div class="pm-table-wrap">
+            <div class="pm-table-scroll">
+                <table class="pm-table" id="userTable">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;">#</th>
+                            <th>Tài khoản</th>
+                            <th class="d-none d-md-table-cell">Email / SĐT</th>
+                            <th>Vai trò</th>
+                            <th class="d-none d-lg-table-cell">Trụ sở</th>
+                            <th>Trạng thái</th>
+                            <th style="width:100px;" class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        @foreach (var user in Model.Users)
+                        {
+                            var avatarBg = user.Role == "Admin" ? "#fee2e2" : (user.Role == "Manager" ? "#fef3c7" : "#dbeafe");
+                            var avatarColor = user.Role == "Admin" ? "#dc2626" : (user.Role == "Manager" ? "#d97706" : "#2563eb");
+                            <tr data-username="@user.Username.ToLower()" data-fullname="@user.FullName.ToLower()"
+                                data-email="@user.Email.ToLower()" data-role="@user.Role" data-id="@user.Id">
+                                <td style="color:#9ca3af; font-size:.75rem;">@user.Id</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="user-avatar" style="background:@avatarBg; color:@avatarColor;">
+                                            @(user.Avatar.Length > 0 ? user.Avatar.Substring(0, Math.Min(2, user.Avatar.Length)) : "??")
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold" style="font-size:.85rem; color:#111827;">@user.FullName</div>
+                                            <div class="font-monospace" style="font-size:.72rem; color:#9ca3af;">@@@user.Username</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="d-none d-md-table-cell" style="font-size:.8rem; color:#374151;">
+                                    @if (!string.IsNullOrEmpty(user.Email))
+                                    {
+                                        <div><i class="bi bi-envelope-fill me-1 text-danger" style="font-size:.7rem;"></i>@user.Email</div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(user.Phone))
+                                    {
+                                        <div><i class="bi bi-telephone-fill me-1 text-success" style="font-size:.7rem;"></i>@user.Phone</div>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="role-@user.Role.ToLower()" style="font-size:.72rem; font-weight:700; padding:.2rem .6rem; border-radius:20px; display:inline-block;">
+                                        @(user.Role == "Admin" ? "Admin" : (user.Role == "Manager" ? "Quản Lý" : "Nhân Viên"))
+                                    </span>
+                                </td>
+                                <td class="d-none d-lg-table-cell" style="font-size:.8rem; color:#374151;">
+                                    @if (user.BranchId.HasValue)
+                                    {
+                                        <i class="bi bi-geo-alt-fill text-danger me-1" style="font-size:.7rem;"></i>@user.Branch
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-globe2 me-1" style="font-size:.7rem; color:#9ca3af;"></i><span style="color:#9ca3af;"><em>Tất cả trụ sở</em></span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <span style="background:#dcfce7; color:#166534; font-size:.7rem; font-weight:700; padding:.15rem .55rem; border-radius:20px; display:inline-flex; align-items:center; gap:.3rem;">
+                                            <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;"></span>Hoạt động
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span style="background:#f3f4f6; color:#6b7280; font-size:.7rem; font-weight:700; padding:.15rem .55rem; border-radius:20px; display:inline-flex; align-items:center; gap:.3rem;">
+                                            <span style="width:6px;height:6px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>Tạm khoá
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-1">
+                                        <button class="pm-action-btn edit" title="Chỉnh sửa"
+                                                onclick="UserMgmt.openUserModal(@user.Id)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                        @if (user.Role != "Admin")
+                                        {
+                                            <button class="pm-action-btn @(user.IsActive ? "" : "toggle")"
+                                                    style="color:@(user.IsActive ? "#d97706" : "");"
+                                                    title="@(user.IsActive ? "Tạm khoá" : "Kích hoạt")"
+                                                    onclick="UserMgmt.toggleUser(@user.Id, '@(user.IsActive ? "lock" : "unlock")')">
+                                                <i class="bi bi-@(user.IsActive ? "lock-fill" : "unlock-fill")"></i>
+                                            </button>
+                                            <button class="pm-action-btn delete" title="Xoá"
+                                                    onclick="UserMgmt.deleteUser(@user.Id, '@user.Username')">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        </div><!-- /tab-accounts -->
+
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB: TRỤ SỞ
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="pm-tab-pane @(!isAccountsTab ? "active" : "")" id="tab-branches">
+
+            <!-- ── Search Bar (pm-search-bar style) ── -->
+        <div class="pm-search-bar">
+            <i class="bi bi-search text-muted"></i>
+            <input type="text" class="form-control form-control-sm" id="branchSearch"
+                   placeholder="Tìm tên, địa chỉ, thành phố…" style="max-width:280px;">
+            <div class="ms-auto">
+                <button class="btn btn-pm-primary btn-sm" onclick="UserMgmt.openBranchModal(0)" id="btnAddBranch">
+                    <i class="bi bi-plus-circle-fill"></i>Thêm trụ sở
+                </button>
+            </div>
+        </div>
+
+        <!-- Branch Cards Grid -->
+        <div class="row g-3" id="branchGrid">
+            @foreach (var branch in Model.Branches)
+            {
+                var staffCount = Model.Users.Count(u => u.BranchId == branch.Id);
+                <div class="col-12 col-md-6 col-xl-4 branch-card-wrap"
+                     data-name="@branch.Name.ToLower()" data-address="@branch.Address.ToLower()"
+                     data-city="@branch.City.ToLower()">
+                    <div class="branch-card">
+                        <!-- Card Header -->
+                        <div class="d-flex align-items-start justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bc-status-dot" style="background:@(branch.IsActive ? "#22c55e" : "#9ca3af");"></div>
+                                <div>
+                                    <div style="font-size:.88rem; font-weight:700; color:#111827; line-height:1.2;">@branch.ShortName</div>
+                                    <div style="font-size:.7rem; color:#9ca3af;">ID #@branch.Id</div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="pm-action-btn edit" title="Chỉnh sửa"
+                                        onclick="UserMgmt.openBranchModal(@branch.Id)">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                                <button class="pm-action-btn @(branch.IsActive ? "" : "toggle")"
+                                        style="color:@(branch.IsActive ? "#d97706" : "");"
+                                        title="@(branch.IsActive ? "Tạm đóng" : "Kích hoạt")"
+                                        onclick="UserMgmt.toggleBranch(@branch.Id, '@(branch.IsActive ? "close" : "open")')">
+                                    <i class="bi bi-@(branch.IsActive ? "pause-circle-fill" : "play-circle-fill")"></i>
+                                </button>
+                                <button class="pm-action-btn delete" title="Xoá"
+                                        onclick="UserMgmt.deleteBranch(@branch.Id, '@branch.ShortName')">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Info rows -->
+                        <div class="d-flex flex-column gap-1" style="font-size:.78rem; color:#374151;">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-geo-alt-fill text-danger mt-1" style="font-size:.7rem; flex-shrink:0;"></i>
+                                <span>@branch.Address@(!string.IsNullOrEmpty(branch.District) ? $", {branch.District}" : "")@(!string.IsNullOrEmpty(branch.City) ? $" – {branch.City}" : "")</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(branch.Phone))
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-telephone-fill text-success" style="font-size:.7rem;"></i>
+                                    <span>@branch.Phone</span>
+                                </div>
+                            }
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-clock-fill text-warning-emphasis" style="font-size:.7rem;"></i>
+                                <span>@branch.OpenHours</span>
+                            </div>
+                            @if (branch.Lat != 0 || branch.Lng != 0)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-crosshair text-primary" style="font-size:.7rem;"></i>
+                                    <a href="https://maps.google.com/?q=@branch.Lat,@branch.Lng" target="_blank"
+                                       class="text-decoration-none" style="font-size:.72rem; color:#2563eb;">
+                                        GPS: @branch.Lat.ToString("F4"), @branch.Lng.ToString("F4")
+                                    </a>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="d-flex align-items-center justify-content-between mt-2 pt-2" style="border-top:1px solid #f3f4f6;">
+                            @if (branch.IsActive)
+                            {
+                                <span style="background:#dcfce7;color:#166534;font-size:.68rem;font-weight:700;padding:.15rem .55rem;border-radius:20px;">Đang mở</span>
+                            }
+                            else
+                            {
+                                <span style="background:#f3f4f6;color:#6b7280;font-size:.68rem;font-weight:700;padding:.15rem .55rem;border-radius:20px;">Tạm đóng</span>
+                            }
+                            <span style="font-size:.72rem; color:#6b7280;"><i class="bi bi-people-fill me-1"></i>@staffCount nhân viên</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        </div><!-- /tab-branches -->
+
+    </div><!-- /umTabContent -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Thêm / Sửa Tài Khoản
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalUser" tabindex="-1" aria-labelledby="modalUserLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="modalUserLabel">
+                    <i class="bi bi-person-plus-fill text-danger me-2"></i>
+                    <span id="modalUserTitle">Thêm Tài Khoản Mới</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="userId" value="0">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Họ &amp; Tên <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="userFullName"
+                               placeholder="Nguyễn Văn A">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Tên đăng nhập <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">@@</span>
+                            <input type="text" class="form-control" id="userUsername"
+                                   placeholder="nguyen.van.a" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Mật khẩu</label>
+                        <input type="password" class="form-control form-control-sm" id="userPassword"
+                               placeholder="Để trống = giữ nguyên" autocomplete="new-password">
+                        <div class="form-text">Tối thiểu 4 ký tự. Để trống khi sửa để giữ nguyên.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Email</label>
+                        <input type="email" class="form-control form-control-sm" id="userEmail"
+                               placeholder="user@hoanggiacoffee.vn">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Số điện thoại</label>
+                        <input type="tel" class="form-control form-control-sm" id="userPhone"
+                               placeholder="09xx xxx xxx">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Vai trò <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="userRole" onchange="UserMgmt.onRoleChange()">
+                            <option value="Admin">Admin – Tổng Quản Trị</option>
+                            <option value="Manager">Manager – Quản Lý Chi Nhánh</option>
+                            <option value="Staff" selected>Staff – Nhân Viên Pha Chế</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="branchSelectWrapper">
+                        <label class="form-label small fw-semibold">Trụ sở <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="userBranchId">
+                            <option value="">(Admin – Không giới hạn)</option>
+                            @foreach (var b in Model.Branches.Where(b => b.IsActive))
+                            {
+                                <option value="@b.Id">@b.ShortName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Trạng thái</label>
+                        <div class="d-flex align-items-center gap-3 mt-1">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="userIsActive" checked>
+                                <label class="form-check-label small" for="userIsActive">Tài khoản hoạt động</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-light rounded-pill px-4" data-bs-dismiss="modal">Huỷ</button>
+                <button type="button" class="btn btn-sm btn-danger rounded-pill px-4 fw-bold" onclick="UserMgmt.saveUser()">
+                    <i class="bi bi-check-circle-fill me-1"></i>Lưu tài khoản
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL: Thêm / Sửa Trụ Sở
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalBranch" tabindex="-1" aria-labelledby="modalBranchLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="modalBranchLabel">
+                    <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                    <span id="modalBranchTitle">Thêm Trụ Sở Mới</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="branchId" value="0">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Tên đầy đủ <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="branchName"
+                               placeholder="Hoàng Gia Coffee - Tên Chi Nhánh">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Tên rút gọn <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="branchShortName"
+                               placeholder="Tên Rút Gọn (Thành Phố)">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Số điện thoại</label>
+                        <input type="tel" class="form-control form-control-sm" id="branchPhone"
+                               placeholder="024 xxxx xxxx">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Địa chỉ <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="branchAddress"
+                               placeholder="Số nhà, tên đường, phường/xã">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Quận / Huyện</label>
+                        <input type="text" class="form-control form-control-sm" id="branchDistrict"
+                               placeholder="Quận Hoàn Kiếm">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Thành phố</label>
+                        <input type="text" class="form-control form-control-sm" id="branchCity"
+                               placeholder="Hà Nội / TP. Hồ Chí Minh">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Giờ mở cửa</label>
+                        <input type="text" class="form-control form-control-sm" id="branchOpenHours"
+                               placeholder="06:30 – 22:00" value="06:30 – 22:00">
+                    </div>
+
+                    <!-- GPS Section -->
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold d-flex align-items-center gap-2">
+                            <i class="bi bi-crosshair text-primary"></i>Tọa độ GPS
+                            <span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.65rem;">Dùng để tìm trụ sở gần nhất</span>
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Lat</span>
+                                    <input type="number" class="form-control" id="branchLat"
+                                           placeholder="21.0285" step="0.0001"
+                                           onchange="UserMgmt.updateGpsPreview()">
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Lng</span>
+                                    <input type="number" class="form-control" id="branchLng"
+                                           placeholder="105.8542" step="0.0001"
+                                           onchange="UserMgmt.updateGpsPreview()">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                                        onclick="UserMgmt.getCurrentGps()" title="Dùng vị trí hiện tại">
+                                    <i class="bi bi-broadcast-pin"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="gpsPreviewBox" class="mt-2 p-2 d-none">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-map-fill text-success"></i>
+                                <span id="gpsPreviewText" class="small text-success fw-semibold"></span>
+                                <a id="gpsMapLink" href="#" target="_blank"
+                                   class="btn btn-xs btn-success px-2 py-0 ms-auto" style="font-size:.7rem;">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Xem Maps
+                                </a>
+                            </div>
+                        </div>
+                        <div class="form-text">Truy cập <a href="https://maps.google.com" target="_blank">Google Maps</a>, nhấp chuột phải vào vị trí → copy tọa độ.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="branchIsActive" checked>
+                            <label class="form-check-label small" for="branchIsActive">Trụ sở đang hoạt động</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-light rounded-pill px-4" data-bs-dismiss="modal">Huỷ</button>
+                <button type="button" class="btn btn-sm btn-danger rounded-pill px-4 fw-bold" onclick="UserMgmt.saveBranch()">
+                    <i class="bi bi-check-circle-fill me-1"></i>Lưu trụ sở
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+<script>
+// ════════════════════════════════════════════════════════════════
+//  switchUMTab – chuyển tab giống ProductManagement
+// ════════════════════════════════════════════════════════════════
+function switchUMTab(name) {
+    document.querySelectorAll('.pm-tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.pm-tab-btn').forEach(b => b.classList.remove('active'));
+    const pane = document.getElementById('tab-' + name);
+    const btn  = document.getElementById('tabBtn-' + name);
+    if (pane) pane.classList.add('active');
+    if (btn)  btn.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UserMgmt – module JS cho trang Quản Lý Tài Khoản & Trụ Sở
+// ════════════════════════════════════════════════════════════════
+const UserMgmt = (() => {
+    const TOKEN = document.querySelector('meta[name="csrf-token"]')?.content
+        || document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        || '';
+
+    // ── Helper: AJAX POST JSON ──
+    async function postJson(url, body) {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': TOKEN
+            },
+            body: JSON.stringify(body)
+        });
+        return resp.json();
+    }
+
+    // ── Helper: show toast ──
+    function toast(msg, ok = true) {
+        Swal.fire({
+            toast: true, position: 'top-end', showConfirmButton: false,
+            timer: 2800, timerProgressBar: true,
+            icon: ok ? 'success' : 'error',
+            title: msg
+        });
+    }
+
+    // ════════════ USER MODAL ════════════
+    function openUserModal(id) {
+        // Reset form
+        document.getElementById('userId').value = id;
+        document.getElementById('userFullName').value = '';
+        document.getElementById('userUsername').value = '';
+        document.getElementById('userPassword').value = '';
+        document.getElementById('userEmail').value = '';
+        document.getElementById('userPhone').value = '';
+        document.getElementById('userRole').value = 'Staff';
+        document.getElementById('userBranchId').value = '';
+        document.getElementById('userIsActive').checked = true;
+        document.getElementById('modalUserTitle').textContent = id === 0 ? 'Thêm Tài Khoản Mới' : 'Chỉnh Sửa Tài Khoản';
+        onRoleChange();
+
+        if (id > 0) {
+            fetch(`/UserManagement/GetUser?id=${id}`)
+                .then(r => r.json())
+                .then(result => {
+                    if (!result.success) { toast(result.message, false); return; }
+                    const u = result.data;
+                    document.getElementById('userFullName').value  = u.fullName  ?? '';
+                    document.getElementById('userUsername').value  = u.username  ?? '';
+                    document.getElementById('userEmail').value     = u.email     ?? '';
+                    document.getElementById('userPhone').value     = u.phone     ?? '';
+                    document.getElementById('userRole').value      = u.role      ?? 'Staff';
+                    document.getElementById('userBranchId').value  = u.branchId  ?? '';
+                    document.getElementById('userIsActive').checked = u.isActive;
+                    onRoleChange();
+                });
+        }
+
+        new bootstrap.Modal(document.getElementById('modalUser')).show();
+    }
+
+    function onRoleChange() {
+        const role = document.getElementById('userRole').value;
+        const wrap = document.getElementById('branchSelectWrapper');
+        const branchSel = document.getElementById('userBranchId');
+        if (role === 'Admin') {
+            wrap.style.opacity = '.5';
+            wrap.querySelector('.form-label').innerHTML = 'Trụ sở <span class="badge bg-secondary ms-1" style="font-size:.6rem;">N/A – Admin xem tất cả</span>';
+            branchSel.value = '';
+            branchSel.disabled = true;
+        } else {
+            wrap.style.opacity = '1';
+            wrap.querySelector('.form-label').innerHTML = 'Trụ sở <span class="text-danger">*</span>';
+            branchSel.disabled = false;
+        }
+    }
+
+    async function saveUser() {
+        const id = parseInt(document.getElementById('userId').value);
+        const dto = {
+            id,
+            fullName:  document.getElementById('userFullName').value.trim(),
+            username:  document.getElementById('userUsername').value.trim(),
+            password:  document.getElementById('userPassword').value.trim() || null,
+            email:     document.getElementById('userEmail').value.trim(),
+            phone:     document.getElementById('userPhone').value.trim(),
+            role:      document.getElementById('userRole').value,
+            branchId:  document.getElementById('userBranchId').value
+                           ? parseInt(document.getElementById('userBranchId').value)
+                           : null,
+            isActive:  document.getElementById('userIsActive').checked,
+            roleDisplayName: ''
+        };
+
+        if (!dto.fullName) { toast('Vui lòng nhập họ tên', false); return; }
+        if (!dto.username) { toast('Vui lòng nhập tên đăng nhập', false); return; }
+        if (dto.role !== 'Admin' && !dto.branchId) { toast('Vui lòng chọn trụ sở cho tài khoản này', false); return; }
+
+        const result = await postJson('/UserManagement/SaveUser', dto);
+        if (result.success) {
+            toast(result.message);
+            bootstrap.Modal.getInstance(document.getElementById('modalUser'))?.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            toast(result.message, false);
+        }
+    }
+
+    async function toggleUser(id, action) {
+        const label = action === 'lock' ? 'tạm khoá' : 'kích hoạt';
+        const confirm = await Swal.fire({
+            title: `${label.charAt(0).toUpperCase() + label.slice(1)} tài khoản?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: action === 'lock' ? '#f59e0b' : '#22c55e',
+            confirmButtonText: `Xác nhận ${label}`,
+            cancelButtonText: 'Huỷ'
+        });
+        if (!confirm.isConfirmed) return;
+        const result = await postJson('/UserManagement/ToggleUserStatus', { id });
+        toast(result.message, result.success);
+        if (result.success) setTimeout(() => location.reload(), 900);
+    }
+
+    async function deleteUser(id, username) {
+        const confirm = await Swal.fire({
+            title: `Xoá tài khoản @@${username}?`,
+            text: 'Hành động này không thể hoàn tác!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Xoá',
+            cancelButtonText: 'Huỷ'
+        });
+        if (!confirm.isConfirmed) return;
+        const result = await postJson('/UserManagement/DeleteUser', { id });
+        toast(result.message, result.success);
+        if (result.success) setTimeout(() => location.reload(), 900);
+    }
+
+    // ════════════ BRANCH MODAL ════════════
+    function openBranchModal(id) {
+        document.getElementById('branchId').value = id;
+        document.getElementById('branchName').value = '';
+        document.getElementById('branchShortName').value = '';
+        document.getElementById('branchPhone').value = '';
+        document.getElementById('branchAddress').value = '';
+        document.getElementById('branchDistrict').value = '';
+        document.getElementById('branchCity').value = '';
+        document.getElementById('branchOpenHours').value = '06:30 – 22:00';
+        document.getElementById('branchLat').value = '';
+        document.getElementById('branchLng').value = '';
+        document.getElementById('branchIsActive').checked = true;
+        document.getElementById('gpsPreviewBox').classList.add('d-none');
+        document.getElementById('modalBranchTitle').textContent = id === 0 ? 'Thêm Trụ Sở Mới' : 'Chỉnh Sửa Trụ Sở';
+
+        if (id > 0) {
+            fetch(`/UserManagement/GetBranch?id=${id}`)
+                .then(r => r.json())
+                .then(result => {
+                    if (!result.success) { toast(result.message, false); return; }
+                    const b = result.data;
+                    document.getElementById('branchName').value      = b.name      ?? '';
+                    document.getElementById('branchShortName').value = b.shortName ?? '';
+                    document.getElementById('branchPhone').value     = b.phone     ?? '';
+                    document.getElementById('branchAddress').value   = b.address   ?? '';
+                    document.getElementById('branchDistrict').value  = b.district  ?? '';
+                    document.getElementById('branchCity').value      = b.city      ?? '';
+                    document.getElementById('branchOpenHours').value = b.openHours ?? '06:30 – 22:00';
+                    document.getElementById('branchLat').value       = b.lat || '';
+                    document.getElementById('branchLng').value       = b.lng || '';
+                    document.getElementById('branchIsActive').checked = b.isActive;
+                    updateGpsPreview();
+                });
+        }
+
+        new bootstrap.Modal(document.getElementById('modalBranch')).show();
+    }
+
+    function updateGpsPreview() {
+        const lat = parseFloat(document.getElementById('branchLat').value);
+        const lng = parseFloat(document.getElementById('branchLng').value);
+        const box = document.getElementById('gpsPreviewBox');
+        if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+            document.getElementById('gpsPreviewText').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            document.getElementById('gpsMapLink').href = `https://maps.google.com/?q=${lat},${lng}`;
+            box.classList.remove('d-none');
+        } else {
+            box.classList.add('d-none');
+        }
+    }
+
+    function getCurrentGps() {
+        if (!navigator.geolocation) { toast('Trình duyệt không hỗ trợ GPS', false); return; }
+        navigator.geolocation.getCurrentPosition(pos => {
+            document.getElementById('branchLat').value = pos.coords.latitude.toFixed(6);
+            document.getElementById('branchLng').value = pos.coords.longitude.toFixed(6);
+            updateGpsPreview();
+            toast('Đã lấy vị trí hiện tại');
+        }, () => toast('Không thể lấy vị trí. Vui lòng cấp quyền truy cập GPS.', false));
+    }
+
+    async function saveBranch() {
+        const id = parseInt(document.getElementById('branchId').value);
+        const dto = {
+            id,
+            name:       document.getElementById('branchName').value.trim(),
+            shortName:  document.getElementById('branchShortName').value.trim(),
+            phone:      document.getElementById('branchPhone').value.trim(),
+            address:    document.getElementById('branchAddress').value.trim(),
+            district:   document.getElementById('branchDistrict').value.trim(),
+            city:       document.getElementById('branchCity').value.trim(),
+            openHours:  document.getElementById('branchOpenHours').value.trim(),
+            lat:        parseFloat(document.getElementById('branchLat').value) || 0,
+            lng:        parseFloat(document.getElementById('branchLng').value) || 0,
+            isActive:   document.getElementById('branchIsActive').checked
+        };
+
+        if (!dto.name)      { toast('Vui lòng nhập tên đầy đủ', false); return; }
+        if (!dto.shortName) { toast('Vui lòng nhập tên rút gọn', false); return; }
+        if (!dto.address)   { toast('Vui lòng nhập địa chỉ', false); return; }
+
+        const result = await postJson('/UserManagement/SaveBranch', dto);
+        if (result.success) {
+            toast(result.message);
+            bootstrap.Modal.getInstance(document.getElementById('modalBranch'))?.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            toast(result.message, false);
+        }
+    }
+
+    async function toggleBranch(id, action) {
+        const label = action === 'close' ? 'tạm đóng' : 'kích hoạt';
+        const confirmed = await Swal.fire({
+            title: `${label.charAt(0).toUpperCase() + label.slice(1)} trụ sở?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Xác nhận',
+            cancelButtonText: 'Huỷ'
+        });
+        if (!confirmed.isConfirmed) return;
+        const result = await postJson('/UserManagement/ToggleBranchStatus', { id });
+        toast(result.message, result.success);
+        if (result.success) setTimeout(() => location.reload(), 900);
+    }
+
+    async function deleteBranch(id, name) {
+        const confirmed = await Swal.fire({
+            title: `Xoá trụ sở "${name}"?`,
+            text: 'Chỉ xoá được khi không còn nhân viên gắn với trụ sở này.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Xoá',
+            cancelButtonText: 'Huỷ'
+        });
+        if (!confirmed.isConfirmed) return;
+        const result = await postJson('/UserManagement/DeleteBranch', { id });
+        toast(result.message, result.success);
+        if (result.success) setTimeout(() => location.reload(), 900);
+    }
+
+    // ════════════ FILTER ════════════
+    function initFilters() {
+        const userSearch = document.getElementById('userSearch');
+        const roleFilter = document.getElementById('roleFilter');
+        function filterUsers() {
+            const q = userSearch.value.toLowerCase();
+            const r = roleFilter.value;
+            document.querySelectorAll('#userTableBody tr').forEach(tr => {
+                const matchQ = !q
+                    || tr.dataset.username?.includes(q)
+                    || tr.dataset.fullname?.includes(q)
+                    || tr.dataset.email?.includes(q);
+                const matchR = !r || tr.dataset.role === r;
+                tr.style.display = matchQ && matchR ? '' : 'none';
+            });
+        }
+        userSearch?.addEventListener('input', filterUsers);
+        roleFilter?.addEventListener('change', filterUsers);
+
+        const branchSearch = document.getElementById('branchSearch');
+        branchSearch?.addEventListener('input', () => {
+            const q = branchSearch.value.toLowerCase();
+            document.querySelectorAll('.branch-card-wrap').forEach(card => {
+                const match = !q
+                    || card.dataset.name?.includes(q)
+                    || card.dataset.address?.includes(q)
+                    || card.dataset.city?.includes(q);
+                card.style.display = match ? '' : 'none';
+            });
+        });
+    }
+
+    // ════════════ INIT ════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        initFilters();
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (tokenInput) {
+            let meta = document.querySelector('meta[name="csrf-token"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.name = 'csrf-token';
+                document.head.appendChild(meta);
+            }
+            meta.content = tokenInput.value;
+        }
+    });
+
+    return { openUserModal, onRoleChange, saveUser, toggleUser, deleteUser,
+             openBranchModal, updateGpsPreview, getCurrentGps, saveBranch,
+             toggleBranch, deleteBranch };
+})();
+</script>
+@Html.AntiForgeryToken()
+}
+

@@ -79,5 +79,17 @@ namespace E_Coffee.Services
         // User Authentication
         AppUser? AuthenticateUser(string username, string password);
         List<AppUser> GetAllUsers();
+
+        // === User Management (Admin only) ===
+        UserManagementIndexViewModel GetUserManagementViewModel();
+        AppUser? GetUserById(int id);
+        (bool Success, string Message) SaveUser(UserSaveDto dto);
+        (bool Success, string Message) DeleteUser(int id);
+        (bool Success, string Message) ToggleUserStatus(int id);
+
+        // === Branch Management (Admin only) ===
+        (bool Success, string Message) SaveBranch(BranchSaveDto dto);
+        (bool Success, string Message) DeleteBranch(int id);
+        (bool Success, string Message) ToggleBranchStatus(int id);
     }
 }
